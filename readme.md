@@ -8,7 +8,7 @@ Pocket 是轻量的javascript视图层框架
 * **使用场景** : 适用于中小型项目，大项目中某部分视图，广告和第三方视图内容的获取，基于jquery操作ajax，操作dom内容
 * **小体积** : 60.1k,压缩后只有18.3k
 
-![](http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocketjs.gif)
+![pocketExp](http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocketjs.gif)
 
 ## 例子
 ###### templates/election.html ... templates/sub/status.html ... templates/sub/other.html
