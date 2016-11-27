@@ -1,13 +1,14 @@
 
 var extendMatch={
   sn: {
-      item: 0
+      item: 0,//作为所有的唯一的序列
+      id:0//作为每一个实例的id
   },
-  keyword:"pocket_record_id",
+  keyword:keyword,
   match: "?",
   regMatch: function() {
       var lf = this.match;
-      return new RegExp("\\" + lf + "([\\w\\.\\-\\:\\|\\,\\#\@\\s]+)\\" + lf, "gm")
+      return matchReg(lf);
   },
   getMatchValue:function(varyOb, ob, item, blg) {//处理变量
        var ts = this;

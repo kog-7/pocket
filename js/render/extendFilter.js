@@ -1,4 +1,3 @@
-
 var filters = {
     upper: function(str) {
         return str.toUpperCase()
@@ -25,10 +24,6 @@ var filters = {
 
 var extendFilter={//filters是给所有模版通用的，
     filters:filters
-    // setFilter: function(opt) {
-    //     var fil = this.filters;
-    //     coverExtend(fil, opt)
-    // }
 };
 
 Pocket.setFilter=function(opt){

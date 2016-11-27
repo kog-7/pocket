@@ -339,39 +339,39 @@ var hasData=function(val){//项目逻辑里，是否有值
     return false;
   }
 }
+    
+    var keyword="pocket_record_id";
 
 
-var fixPushArray=function(alias,syncData,outOb){
+var matchReg=function(match){
+    return new RegExp("\\" + match + "([\\w\\.\\-\\:\\|\\,\\#\\s\\&\\u4e00-\\u9fa5]+)\\" + match, "gm");
+};
 
-  var aliasArr=alias.split(",");
-  var temp=null;
-  aliasArr.forEach(function(al,ind){
-    temp=syncData[al];
-    if(!(al in syncData)){
-      temp=syncData[al]=[];
-    }
-    temp.push(outOb);
-  });
-  
-  
-}
+
+
+var UserException=function(message) {
+ this.message = message;
+ this.name = "UserException";
+};
+    
     var templateCache = {};
-    var Pocket = function (url, aim) {
-        var privateInfo = {
-            url: url,
-            aim: aim
-        };
-        this.usePrivate = function (attr, val) {
-            if (val !== undefined) {
-                privateInfo[attr] = val; //如果优值
-            } else {
-                return privateInfo[attr];
-            }
-        };
+    var Pocket = function (aim,url) {
+      if(typeof aim==="string"){this.aim=aim;}
+      if(typeof url==="string"){this.url=url;}
+      this._init();
     };
     var prototypePocket = {
         constructor: Pocket
     };
+    
+    
+    var extendInit={
+  _init:function(){
+    this.id=this.sn.id+=1;
+  }
+}
+    miniExtend(prototypePocket, extendInit);
+    
     var filters = {
     upper: function(str) {
         return str.toUpperCase()
@@ -398,10 +398,6 @@ var fixPushArray=function(alias,syncData,outOb){
 
 var extendFilter={//filters是给所有模版通用的，
     filters:filters
-    // setFilter: function(opt) {
-    //     var fil = this.filters;
-    //     coverExtend(fil, opt)
-    // }
 };
 
 Pocket.setFilter=function(opt){
@@ -667,159 +663,679 @@ var anaInclude = function(opt) {
     };
     f(htmlArr, oriOb)
 }
+var UpdateRun=(function(){
+  var clear = function () {
+    this._runFuns = [];
+    this._args = [];
+    this.break = true;
+}
+var get = function (fun) {
+    var runFuns = this._runFuns;
+    runFuns.push(fun);
+    return this;
+};
+var endCallback = function (fun) {
+    if (typeof fun !== "function") {
+        return false;
+    }
+    this._endFun = fun;
+};
 
+var setLength = function (lg) {
+    if (typeof lg !== "number") {
+        return false;
+    }
+    this.length = lg;
+};
 
-var extendRender={
-  setTemplate:function(url,jsonp){
-    if(typeof url==="string"){//暂时不做强判断
-      this.usePrivate("url",url);
+var cycle = function (outNo, length, defStart) {
+    if (!defStart) {
+        defStart = 0;
     }
-    if(jsonp==="jsonp"){this.jsonp=true;}
-  },
-  setHtml:function(tmp){
-    if(typeof tmp==="string"){//暂时不做强判断
-      this.usePrivate("template",tmp);
+    // var outNo=startNo+addNo;
+    var mod,
+        divide;
+    var cut;
+    var outLength = length + defStart - 1;
+    if (outNo > outLength) {
+        cut = outNo - outLength; //得到差值
+        mod = cut % length; //得到余数
+        if (mod === 0) {
+            outNo = outLength; //如果参数都是周期则。。
+        } else {
+            outNo = defStart - 1 + mod; //多加初始值，要减去一的
+        }
+    } else if (outNo < defStart) { //小于开始的默认值
+        cut = defStart - outNo; //差值
+        mod = cut % length;
+        if (mod === 0) {
+            outNo = 0;
+        } else {
+            outNo = outLength + 1 - mod; //由于0到length也有一个长度所以要+
+        }
     }
-  },
-  setContainer:function(sel){
-    if(typeof sel==="string"){//暂时不做强判断
-      this.usePrivate("aim",sel);
-    }
-  },
-  _sendData:function(lazyData){
-    var ts=this;
-    return function(data){
-      if(typeof lazyData==="object"&&data){
-        lazyData.data=data;
-      }
-      else{
-        lazyData={data:data};
-      }
-      ts.render(lazyData,ts);
-    }
-  },
-  useData:function(fun){
-        var ts=this;
-    if(!(typeof fun==="function")){
-      return ts;
+    return outNo;
+};;
+var setArg = function (opt) { //逻辑为如果有item，则给固定的item对应设置函数，
+    //否则给全部的args的数量来绑定arg，如果为insert为append，则追加arg到arg后面
+    //遍历的数量，要么数量确定，要么，根据funs的长度来
+    //opt:{item:0,arg:[xx],insert:append}
+    //即使全部一样设置，也能做到特殊性
+    var item = opt.item,
+        arg = opt.arg, //arg为数组
+        insert = opt.insert;
+    var args = this._args;
+    var runfuns = this._runFuns;
+    //判断长度，如果没有取runfuns的长度
+    var lg = this.length;
+    if (!lg) {
+        lg = runfuns.length;
     }
 
-    var f = function() {};
-    f.prototype = ts;
-    var newTs = new f();
-    
-    newTs._cbData=true;
-    setTimeout(function () {
-      var lazyData=newTs.lazyData;
-      newTs._cbData=false;
-      newTs.lazyData
-      fun(newTs._sendData(lazyData));
-      delete newTs.lazyData;
-      delete newTs._cbData;
-    }, 0);
-    return newTs;
-  },
-  setCallback:function(funOb){
-    var ts=this;
-    if(ts.loaded===true){return false;}//表示已经运行完成不需要回调了,由于usedata的作用，这里要用true判断
-    if(["function","object"].indexOf(typeof funOb)!==-1){
-    ts.callback=funOb;
-     }
+    if (typeof item === "number") {
+        if (!args[item]) {
+            args[item] = [];
+        }
+        if (insert === "append") { //append表示插入
+            args[item] = args[item].concat(arg);
+        } else {
+            args[item] = arg;
+        }
+    } else { //全部覆盖的
+        var i = 0;
+        for (; i < lg; i += 1) {
+            //取到某个arg
+            var targ = args[i];
+            if (!targ) { //没有的话初始化为数组
+                args[i] = [];
+            }
+            if (insert === "append") { //添加
+                args[i] = args[i].concat(arg);
+            } else { //覆盖
+                args[i] = arg;
+            }
+        }
+    }
+}
+
+var Sync = (function () {
+    var go = function (startNo) { //里面传入参数,这个arg要为数组。而后面next的内容可以随便
+        var runFuns = this._runFuns;
+        // if(!runFuns){return false;}
+        var lg = this.length;
+        if (!lg) {
+            lg = runFuns.length;
+        }
+
+        var nowFocus = 0;
+        //新生成一个对象
+        var f = function () {};
+        f.prototype = this;
+        var nowThis = new f();
+
+        nowThis.focus = nowFocus; //开始焦点
+        nowThis.collectData = [];
+        nowThis.break = false; //设置终端
+        nowThis.length = lg; //设置长度
+        nowThis._args = [].concat(nowThis._args);
+
+        setTimeout(function () {
+            var args = nowThis._args;
+            var nowFocus = nowThis.focus;
+            var fun = runFuns[nowFocus];
+            var arg = args[nowFocus];
+              nowThis.focus += 1;
+            fun.call(nowThis, {setup: arg});
+          
+        }, 0);
+
+        return nowThis;
+    };
+
+    //除了第一个函数是按setup传入，其他的都是{setup:,flow:}来传入
+    var next = function () { //传入的参数优先级更高，其次才是_arg
+        var endFun = this._endFun;
+        if (this.break === true) { //如果终端则停止
+            if (endFun) {
+                endFun(this.collectData);
+            }
+            return;
+        }
+        var arg = Array.prototype.slice.call(arguments, 0); //flow参数
+        var args = this._args; //setup参数
+        var lg = this.length; //运行长度
+        var focus = this.focus;
+        var runFuns = this._runFuns;
+        var funLength = runFuns.length; //函数总长度
+
+        var outFocus = cycle(focus, funLength); //得到循环的具体长度
+
+        var setupArg = args[focus]; //setup参数,只按照focus的走
+
+        var funArg = {
+            setup: setupArg,
+            flow: arg
+        };
+
+        var data = this.collectData;
+        data.push(funArg); //收集数据
+this.focus += 1; //焦点添加1
+        if (focus >= lg) { //如果超过了长度，也就是必须在最后运行函数里面加上next
+            this.focus = 0;
+            if (endFun) {
+                endFun.call(null, data);
+            }
+        } else { //如果这里继续运行的，会在这里形成，，，等待递归，this.focus必须在前面
+            //真正取得的函数
+
+            //如果只有一个，则循环运行，达到长度为止
+            //这里如果是同步运行，会在辞典一直运行下去
+            runFuns[outFocus].call(this, funArg);
+            // (this._runFuns.shift()).apply(this,arg);
+        }
+        
+    }
+    Sync = function () {
+        this._runFuns = [];
+        this._args = [];
+        // this.focus = 0;
+        // this.break = false; //中断运行
+    }
+
+    Sync.prototype = {
+        constructor: Sync,
+        clear: clear,
+        get: get,
+        setArg: setArg,
+        setCallback: endCallback,
+        go: go,
+        setLength: setLength,
+        next: next
+    };
+
+    return Sync;
+})();
+
+var Collect = (function () {
+
+    var go = function (startNo) { //里面传入参数,这个arg要为数组。而后面next的内容可以随便
+        var runFuns = this._runFuns;
+        // if(runFuns.length===0){return false;}
+        var lg = this.length;
+        if (!lg) {
+            lg = runFuns.length;
+        }
+
+        var nowFocus = 0;
+        //新生成一个对象
+        var f = function () {};
+        f.prototype = this;
+        var nowThis = new f();
+
+        nowThis.focus = nowFocus; //开始焦点
+        nowThis.collectData = [];
+        nowThis.break = false; //设置终端
+        nowThis.length = lg; //设置长度
+        nowThis._args = [].concat(nowThis._args);
+        //延迟运行
+        setTimeout(function () {
+            var args = nowThis._args;
+            var nowFocus = nowThis.focus;
+            var runfuns = nowThis._runFuns;
+            var lg = nowThis.length; //有可能回调后再取一次，所以，
+            var funLength = runfuns.length;
+            var i = 0;
+            var fun = null;
+            var outFocus;
+            var arg = null;
+            for (; i < lg; i += 1) {
+                outFocus = cycle(i, funLength);
+                fun = runfuns[outFocus]; //取得真实的运行函数
+                arg = args[i];
+                
+                fun.call(nowThis,{setup:arg});
+            }
+        }, 0);
+        return nowThis;
+    };
+
+    var next = function () { //传入的参数优先级更高，其次才是_arg
+        var endFun = this._endFun;
+        if (this.break === true) { //如果终端则停止
+            if (endFun) {
+                endFun(this.collectData);
+            }
+            return;
+        }
+        var arg = Array.prototype.slice.call(arguments, 0); //flow参数
+        var lg = this.length; //运行长度
+        var focus = this.focus;
+        var data = this.collectData;
+        data.push(arg); //收集数据
+        this.focus += 1; //焦点添加1
+        
+        if (focus >= lg - 1) { //如果超过了长度，也就是必须在最后运行函数里面加上next
+            this.focus = 0;
+            if (endFun) {
+                endFun.call(null, data);
+            }
+        }
+        
+    }
+
+    Collect = function () {
+        this._runFuns = [];
+        this._args = [];
+        // this.focus = 0;
+        // this.break = false; //中断运行
+    }
+
+    Collect.prototype = {
+        constructor: Collect,
+        clear: clear,
+        get: get,
+        setArg: setArg,
+        setCallback: endCallback,
+        go: go,
+        setLength: setLength,
+        next: next
+    }
+    return Collect;
+})();
+  var f=function(factory,updateCallbacks,updateInfos){
+    //updateCallbacks是包含各种状态的回调运行函数，updateInfos是变量存储的各种内容
+  
+    this.updateCallbacks=updateCallbacks;
+    this.updateInfos=updateInfos;
+    this.factory=factory;
+    this.binds={};
+  };
+  
+  var bind=function(currentScope,scope,envir){
+  var ts=this;
+  var binds=ts.binds;
+  var nowBinds=binds[currentScope];
+  var factory=ts.factory;
+
+  if(!nowBinds){nowBinds=binds[currentScope]=[];}
+  
+  var ob={point:scope,envir:factory};
+  if(envir){
+    ob.envir=envir;
+  }
+  nowBinds.push(ob);
   return ts;
-  },
-  render:function(opt,newTs) {
-        var ts = this;
-        if(ts._cbData===true){//只是取值的过程
-          ts.lazyData=opt;
-          return ts;
-        }
-      var aim,attrs,data,strhtml,url,cache,callback,record,insert,jsonp,mode;
-      if(opt){
-        aim=opt.aim,attrs=opt.attrs;//放入attrs属性
-        data = opt.data,
-            strhtml = opt.template;
-        url = opt.url;//
-        cache = opt.cache;
-        callback = opt.callback;
-        // match = opt.match;//重新正则
-        record=opt.record;//record是新生的newTs才绑定
-        insert=opt.insert;
-        jsonp=opt.jsonp;
-        // mode=opt.mode;
-      }
-      if(typeof callback==="function"){
-        ts.callback=callback;
-      }
+};
 
-        //参数处理,传入和默认的做对比，优先参数传入的，
-          strhtml=strhtml?strhtml:ts.usePrivate("template");
-          url=url?url:ts.usePrivate("url");
-          aim=aim?aim:ts.usePrivate("aim");
-        //参数处理结束
-        
-        
-        if(!(newTs&&("render" in newTs))){
-          var f = function() {};
-          f.prototype = ts;
-          newTs = new f();
+var unbind=function(currentScope){
+  var ts=this;
+  var binds=ts.binds;
+  if(currentScope in binds){
+    delete binds[currentScope];
+  }
+};
+
+var sync=function(){
+  var ts=this;
+  var newTs=createInherit(ts);
+  newTs.runType="sync";
+  var syncFun=newTs.syncFun=new Sync();
+  newTs.step=-1;
+  setTimeout(function () {
+    syncFun.go();
+  }, 0);
+  return newTs;
+};
+
+var collect=function(endFun){
+  var ts=this;
+  var newTs=createInherit(ts);
+  newTs.runType="collect";
+  var collectFun=newTs.collectFun=new Collect();
+  newTs.step=-1;
+  setTimeout(function () {
+    collectFun.go();
+  }, 0);
+  if(typeof endFun==="function"){collectFun.setCallback(endFun);}
+  return newTs;
+};
+
+var updateState=function(status,val_fun){
+  var ts=this;
+  var runType=ts.runType;
+  if(!runType){
+    ts._update(status,val_fun);
+  }
+  else{
+    ts["_"+runType+"Update"](status,val_fun);
+  }
+  return ts;
+};
+
+var _update=function(status,val_fun){
+  var ts=this;
+  var updateCallbacks=ts.updateCallbacks;
+  // if(!updateCallbacks){
+  //   throw new UserException("没在update中加载相关的update回调函数")
+  //   return false;}
+  var ts=this;
+  var kw=ts.keyword;
+  var refId=ts.refId;
+  var updateInfos=ts.updateInfos;
+  if(updateCallbacks){
+  var ifun=updateCallbacks[status];
+  var current=$("[data-"+kw+"="+refId+"]");
+  if(typeof ifun==="function"){//直接回调相关内容，传入factory作为ts
+    ifun.call(ts.factory,{current:current,message:updateInfos,value:val_fun},ts._cbCallback(current,status));
+  }
+}
+};
+
+var _syncUpdate=function(status,val_fun){
+  if(typeof val_fun!=="function"){
+    throw new UserException("异步队列下updateState第二个参数必须为函数");
+    return false;
+  }
+  var ts=this;
+  var syncFun=ts.syncFun;
+  var step=ts.step+=1;
+
+  
+  syncFun.setArg({item:step,arg:[status]});
+  syncFun.get(ts._cbFun(val_fun));
+};
+
+var _collectUpdate=function(status,val_fun){
+  if(typeof val_fun!=="function"){
+    throw new UserException("异步队列下updateState第二个参数必须为函数");
+    return false;
+  }
+  var ts=this;
+  var collectFun=ts.collectFun;
+  var step=ts.step+=1;
+  collectFun.setArg({item:step,arg:[status]});
+  collectFun.get(ts._cbFun(val_fun));
+};
+  var _cbCallback=function(trigger,currentStatus){//这里是做同步更新的
+  var ts=this;
+  var binds=ts.binds;
+  var kw=ts.keyword;
+  var nowBinds=binds[currentStatus];
+
+  return function(val){//返回的值,此函数为cb,val可能是处理后的value
+    //可能会同步
+    if(nowBinds){
+      setTimeout(function () {
+        nowBinds.forEach(function(ob,ind){
+          var env=ob.envir,po=ob.point.split(".");//分解成数组
+          var ref=po[0],status=po[1];//一个ref，状态
+          var refOb=env[ref];
+          //得到更新回调函数和数据
+          var callbacks=refOb.updateCallbacks,infos=refOb.updateInfos;
+          var fun=callbacks[status];
+          var refId=refOb.refId;
+          var current=$("[data-"+kw+"="+refId+"]");
+          if(typeof fun==="function"){
+            //同步传播的回调
+            fun.call(env,{trigger:trigger,current:current,message:infos,value:val},ts._cbCallback(current));
+          }
+        });
+      }, 16.666);
+    }
+  };
+};
+
+
+
+var _cbFun2=function(that){
+  return function(val){
+    that.next(val);
+  }
+};
+
+var _cbFun3=function(fun,fac,opt,cback){
+  return function(val){
+    opt.value=val;
+    fun.call(fac,opt,cback);
+  };
+};
+
+var _cbFun=function(val_fun){
+  // console.log(989)
+  var ts=this;
+  var updateCallbacks=ts.updateCallbacks;
+  // if(!updateCallbacks){
+  //   throw new UserException("没在update中加载相关的update回调函数")
+  //   return false;
+  // }
+  var kw=ts.keyword;//
+  var refId=ts.refId;//domid
+  var updateInfos=ts.updateInfos;//信息
+  var current=$("[data-"+kw+"="+refId+"]");//当前jqdom对象
+  var factory=ts.factory;
+
+  return function(args){
+  var setup=args.setup,flow=args.flow;
+  var lastValue;
+  if(flow){lastValue=flow[0];}
+  var status=setup[0];
+  var ifun;
+  if(updateCallbacks){
+    ifun=updateCallbacks[status];//运行的回调函数
+}
+if(!ifun){ifun=function(){}}
+  var cbCallback=ts._cbCallback(current,status);
+  var that=this;  //that为sync对象的that类型
+  val_fun(ts._cbFun2(that),ts._cbFun3(ifun,factory,{current:current,message:updateInfos},cbCallback),lastValue,updateInfos);
+}
+};
+  
+  f.prototype={
+    keyword:keyword,
+    bind:bind,
+    unbind:unbind,
+    sync:sync,
+    collect:collect,
+    updateState:updateState,
+    _update:_update,
+    _syncUpdate:_syncUpdate,
+    _collectUpdate:_collectUpdate,
+    _cbCallback:_cbCallback,
+    _cbFun2:_cbFun2,
+    _cbFun3:_cbFun3,
+    _cbFun:_cbFun
+    };
+
+return f;
+
+})()
+;
+
+
+var Update=(function(){
+var classUpdate=function(){
+};
+
+classUpdate.prototype={
+  init:function(updateObject,attrs,refOb,updateFuns){
+    var ts=this;
+    ts.loaded=false;
+    ts.attrs=attrs;
+    ts._decoration(refOb,updateObject,updateFuns);
+  },
+  _decoration:function(refOb,updateObject,updateFuns){
+    var factory=this;
+    forEachOb(refOb,function(ref,refId){
+      var updateCallbacks=updateFuns[ref];
+      var updateInfos=updateObject[ref];  
+      var exp=new UpdateRun(factory,updateCallbacks,updateInfos);
+      exp.ref=ref,exp.refId=refId;
+      factory[ref]=exp;
+    });
+  }
+};
+return classUpdate;
+})()
+
+var extendRender = {
+    setTemplate: function (url, jsonp) {
+        if (typeof url === "string") { //暂时不做强判断
+            // this.usePrivate("url",url);
+            this.url = url;
         }
-        if(record===undefined){record=true;}//默认开启record
+        if (jsonp === "jsonp") {
+            this.jsonp = true;
+        }
+    },
+    setHtml: function (tmp) {
+        if (typeof tmp === "string") { //暂时不做强判断
+            // this.usePrivate("template",tmp);
+            this.template = tmp;
+        }
+    },
+    setContainer: function (sel) {
+        if (typeof sel === "string") { //暂时不做强判断
+            // this.usePrivate("aim",sel);
+            this.aim = sel;
+        }
+    },
+    setCallback:function(fun){
+      var ts=this;
+      if(typeof fun==="function"){
+        ts.mountCallback=fun;
+      }
+    },
+    _sendData: function (lazyData) {
+        var ts = this;
+        return function (data) {
+            if (typeof lazyData === "object" && data) {
+                lazyData.data = data;
+            } else {
+                lazyData = {
+                    data: data
+                };
+            }
+            ts.render(lazyData, ts);
+        }
+    },
+    useData: function (fun) {
+        var ts = this;
+        if (!(typeof fun === "function")) {
+            return ts;
+        }
+        var f = function () {};
+        f.prototype = ts;
+        var newTs = new f();
+        newTs._cbData = true;
+        setTimeout(function () {
+            var lazyData = newTs.lazyData;
+            newTs._cbData = false;
+            newTs.lazyData
+            fun(newTs._sendData(lazyData));
+            delete newTs.lazyData;
+            delete newTs._cbData;
+        }, 0);
+        return newTs;
+    },
+    render: function (opt, newTs) {
+        var ts = this;
+        if (ts._cbData === true) { //只是取值的过程
+            ts.lazyData = opt;
+            return ts;
+        }
+        var aim,
+            attrs,
+            data,
+            strhtml,
+            url,
+            record,
+            insert,
+            jsonp,
+            mode;
+        if (opt) {
+            aim = opt.aim,
+            attrs = opt.attrs; //放入attrs属性
+            data = opt.data,
+            strhtml = opt.template;
+            url = opt.url;
+            insert = opt.insert;
+            jsonp = opt.jsonp;
+            // mode=opt.mode;
+        }
+        //参数处理,传入和默认的做对比，优先参数传入的，
+        strhtml = strhtml
+            ? strhtml
+            : ts.template;
+        url = url
+            ? url
+            : ts.url;
+        aim = aim
+            ? aim
+            : ts.aim;
+        //参数处理结束
+        if (!(newTs && ("render" in newTs))) {
+            var f = function () {};
+            f.prototype = ts;
+            newTs = new f();
+        }
         newTs.storeExp = {};
-        newTs.storeExpItem=0;
+        newTs.storeExpItem = 0;
         newTs.refOb = {};
-        newTs.insertType=insert;//表示插入模式
-        newTs.aim=aim;//新的对象拥有自己的aim属性
-        newTs.record=record;
-        newTs.loaded=false;//是否加载完全
-        newTs.signItem=0;
-        newTs.signStore={};
-        newTs.aliasArray=[];
-        newTs._exps=null;//防止后此渲染而追加内容
-        if(jsonp===undefined){jsonp=ts.jsonp;}
-        if(attrs!==undefined){newTs.attrs=attrs;}
-        // if(mode){newTs.mode=mode;}//表示如iframe，等这种,
-        // if (match) {
-        //     ts.match = match;
-        // }
+        newTs.insertType = insert; //表示插入模式
+        newTs.aim = aim; //新的对象拥有自己的aim属性
+
+        newTs.signItem = 0;
+        newTs.signStore = {};
+        newTs._exps = null; //防止后此渲染而追加内容
+        if (jsonp === undefined) {
+            jsonp = ts.jsonp;
+        }
+        if (attrs !== undefined) {
+            newTs.attrs = attrs;
+        }
+
         if (url && url in templateCache) {
             strhtml = templateCache[url];
         }
         var outData = {
             template: strhtml,
-            data: data,
-            callback: callback
+            data: data
         };
         setTimeout(function () {
-          
-    
-        if (strhtml) {
+            if (strhtml) {
                 newTs._render(outData, null, "render");
-        } else {
-            anaInclude({
-                url: url,
-                callback: function(ob) {
-                    var html = templateCache[url] = ob.html;
-                    outData.template = html;
-                    newTs._render(outData, null, "render")
-                },
-                jsonp:jsonp
-            }, cache)
-        }
-      }, 0);
-        return newTs;
+            } else {
+                anaInclude({
+                    url: url,
+                    callback: function (ob) {
+                        var html = templateCache[url] = ob.html;
+                        outData.template = html;
+                        newTs._render(outData, null, "render")
+                    },
+                    jsonp: jsonp
+                })
+            }
+        }, 0);
+
+        //返回的内容
+        var updateOb = new Update();
+        newTs.updateOb = updateOb;
+        //前端大多异步，所以返回是无用的
+        // return updateOb;
     }
 }
     miniExtend(prototypePocket, extendRender);
 
     var extendMatch={
   sn: {
-      item: 0
+      item: 0,//作为所有的唯一的序列
+      id:0//作为每一个实例的id
   },
-  keyword:"pocket_record_id",
+  keyword:keyword,
   match: "?",
   regMatch: function() {
       var lf = this.match;
-      return new RegExp("\\" + lf + "([\\w\\.\\-\\:\\|\\,\\#\@\\s]+)\\" + lf, "gm")
+      return matchReg(lf);
   },
   getMatchValue:function(varyOb, ob, item, blg) {//处理变量
        var ts = this;
@@ -933,51 +1449,44 @@ var extendRender={
 
 
 
+
 var parseVariable = function(str) {
     var  vary, filter;
     var divide = "|";
     var potDivide = ":";
     var ind = str.indexOf(divide);
-    var lg = str.length;
+    // var lg = str.length;
     var potInd;
     var filterArr = null;
-    var alias,aliasInd;
+    var ifsave=false;
+    // var status=null;
     if (ind !== -1) {//操作过滤器
-      
         vary = str.slice(0, ind);
         filter = str.slice(ind + 1);
-        aliasInd=filter.indexOf("\@");
-        if(aliasInd!==-1){
-          alias=filter.slice(aliasInd+1);
-          filter=filter.slice(0,aliasInd);
+        if(filter&&filter.substr(-1,1)==="\&"){
+          ifsave=true;
+          filter=filter.slice(0,-1);
         }
         if (filter) {
             filterArr = filter.split(",")
         }
-    } else {
-        aliasInd=str.indexOf("\@");
-      if(aliasInd!==-1){
-        alias=str.slice(aliasInd+1);
-        str=str.slice(0,aliasInd);
+    } 
+    else {
+      if(str.substr(-1,1)==="\&"){
+        ifsave=true;
+        str=str.slice(0,-1);
       }
         vary = str
     }
-    var firstAttr=vary.split(",")[0].split(":")[0];
-    // vary=vary.split(",");//通过，表示多个变量
-    
-    // potInd = vary.indexOf(potDivide);
-    // if (potInd !== -1) {
-    //     def = vary.slice(potInd + 1);
-    //     vary = vary.slice(0, potInd)
-    // } else {
-    //     def = ""
-    // }
-    return {
-        filter: filterArr,
-        variable: vary,
-        firstAttr:firstAttr,
-        alias:alias
-    }
+    var firstAttr;
+      firstAttr=vary.split(",")[0].split(":")[0];
+      return {
+          filter: filterArr,
+          variable: vary,
+          firstAttr:firstAttr,
+          save:ifsave
+      }
+  
 };
 
 
@@ -1014,9 +1523,11 @@ var parseS = function(str, match) {
 };
 
 
+
 var extendExpress={
   handExpress: function(str, ob, item, blg) {//处理变量和值，也包括express表达式等
       var ts = this;
+      var tsId=ts.id;
       var varyOb = parseVariable(str);//先提取出相关内容做是什么内容的判断
       var match = ts.match;
       if (!item) {
@@ -1092,7 +1603,6 @@ var extendExpress={
             if(scopeVal[0]===match){//如果第一个是变量，要去掉匹配
               scopeVal=scopeVal.slice(1,-1);
               var scopeVaryOb = parseVariable(scopeVal);
-              
               tmpob = ts.getMatchValue(scopeVaryOb, ob, item, blg);
               if (!tmpob) {
                   tmpob = ""
@@ -1121,14 +1631,14 @@ var extendExpress={
           var kw=ts.keyword;
           if(!(ref in refOb)){
             soleItem=ts.sn.item+=1;
-            refOb[ref]=soleItem;//埋入id
+            refOb[ref]=ref+"-"+tsId+"-"+soleItem;//埋入id,最后一个数字为唯一的id
           }
           return 'data-xjref="' + ref+'"';
       } 
       else {//单变量解析
           tmpob = ts.getMatchValue(varyOb, ob, item, blg);
           if(typeof tmpob==="object"){tmpob=tmpob.toString();}
-          var parOb={value:tmpob,attr:varyOb.firstAttr,alias:varyOb.alias};
+          var parOb={value:tmpob,attr:varyOb.firstAttr,save:varyOb.save};
           parOb[ts.keySign]=true;
           return parOb;
           // return tmpob
@@ -1203,12 +1713,13 @@ var extendParse={
   var rd=(100*(Math.random())).toFixed(0);
   return "pocket_var"+rd;
 })(),
-  _toSignString:function(attr,val,alias){
+  _toSignString:function(attr,val,save){//save表示保存相关的变量值
+    if(save!==true){return val;}//不保存，原内容返回
     var ts=this;
     var keySign=ts.keySign;
     var item=ts.signItem+=1;
     item=item.toString();
-    ts.signStore[item]={attr:attr,value:val,alias:alias};
+    ts.signStore[item]={attr:attr,value:val};
     return "#"+keySign+item+keySign+"#";
   },
    stringEachArr: function(str, obs, item, blg) {//从_render进入的入口
@@ -1226,9 +1737,7 @@ var extendParse={
          middleStr=str.slice(lastInd,ind);
          outstr+=middleStr;
          copyOutStr+=middleStr;
-
          matchVal=ts.handleStr(matchStr,obs,item,blg);
-      
          if(typeof matchVal!=="object"){
            outstr+=matchVal;
            copyOutStr+=matchVal;
@@ -1240,7 +1749,7 @@ var extendParse={
          else{
           //  console.log(matchVal)
             outstr+=matchVal.value;
-            copyOutStr+=ts._toSignString(matchVal.attr,matchVal.value,matchVal.alias);
+            copyOutStr+=ts._toSignString(matchVal.attr,matchVal.value,matchVal.save);
          }
         //  outstr+=matchVal;
          lastInd=reg.lastIndex;
@@ -1255,7 +1764,7 @@ var extendParse={
        var ts = this;
        var mat = ts.handExpress(str, obs, item, blg);
        var keySign=ts.keySign;
-       
+  
        if (["number", "string"].indexOf(typeof mat) !== -1) {
            return mat;
        }
@@ -1274,7 +1783,7 @@ var extendParse={
        var ts = this;
        var match = this.match;
        var strarr = anaTag(strhtml, match);//分析{{}}关键字
-       var callback = opt.callback;
+      //  var callback = opt.callback;
        var lastData = opt.lastData;
        var template = "";
        var newItem;
@@ -1371,18 +1880,20 @@ var extendParse={
 var returnOut={html:outstr,copyHtml:copyOutStr};
       if(!mid){//表示为初始运行环境，才出去入口
 //data为初次原始的data
-      ts._handleDom(returnOut,callback);
+      ts._handleDom(returnOut);
     }
        return returnOut;
    }
 }
     miniExtend(prototypePocket, extendParse);
 
-    var runMountFun = function (amount, outDom,ts) {
+    var runMountFun = function (amount, outDom, ts) {
     var afunAttr = null,
         afun = null,
         afargs = null;
-    if(!amount){return false;}
+    if (!amount) {
+        return false;
+    }
     for (afunAttr in amount) {
         if (afunAttr in outDom) {
             afun = amount[afunAttr];
@@ -1404,16 +1915,29 @@ var returnOut={html:outstr,copyHtml:copyOutStr};
 
 }
 
+// var fixPushArray=function(alias,syncData,outOb){
+//   var aliasArr=alias.split(",");
+//   var temp=null;
+//   //别名有多个，然后al分拆下来，如果这个内容没有在对象syncdata里面有的话，则生成为[]，然后push outOb
+//   aliasArr.forEach(function(al,ind){
+//     temp=syncData[al];
+//     if(!(al in syncData)){
+//       temp=syncData[al]=[];
+//     }
+//     temp.push(outOb);
+//   });
+// }
 
-var anaContent = function (txOb, bigOb, syncData, refAttr, idval, txId, item) {
-    var uOb = bigOb[refAttr];
-    if (!(refAttr in bigOb) || typeof bigOb[refAttr] !== "object") {
-        uOb = bigOb[refAttr] = [];
-        uOb._pocket_id = idval;
+
+var _anaContent = function (updateObject,txOb, refAttr, idval, txId, item) {
+  var ts=this;
+    var uOb = updateObject[refAttr];
+    if (!(refAttr in updateObject) || typeof updateObject[refAttr] !== "object") {
+        uOb = updateObject[refAttr] = [];
+        // uOb._pocket_id = idval;
     }
     var attr = txOb.attr,
-        val = txOb.value,
-        alias = txOb.alias;
+        val = txOb.value;
     attr = attr
         ? attr
         : "__default";
@@ -1421,99 +1945,82 @@ var anaContent = function (txOb, bigOb, syncData, refAttr, idval, txId, item) {
     outOb.type = "textContent",
     outOb.value = val,
     outOb.attr = attr;
-    outOb.identity = idval.toString() + txId;
-    outOb.domId = idval;
-    outOb.ref = refAttr;
+    // outOb.identity = idval.toString() + txId;
+    // outOb.domId = idval;
+    // outOb.ref = refAttr;
     if (item !== undefined) {
         outOb.domItem = item;
-    }
-    if (alias) {
-        outOb.alias = alias;
-        fixPushArray(alias, syncData, outOb);
     }
     uOb.push(outOb);
 }
 
-var anaClass = function (txOb, bigOb, syncData, refAttr, ind, idval, txId, item) {
-    var uOb = bigOb[refAttr];
-    if (!(refAttr in bigOb) || typeof bigOb[refAttr] !== "object") {
-        uOb = bigOb[refAttr] = [];
-        uOb._pocket_id = idval;
+
+var _anaClass = function (updateObject,txOb, refAttr, ind, idval, txId, item) {
+  var ts=this;
+    var uOb = updateObject[refAttr];
+    if (!(refAttr in updateObject) || typeof updateObject[refAttr] !== "object") {
+        uOb = updateObject[refAttr] = [];
+        // uOb._pocket_id = idval;
     }
     var attr = txOb.attr,
-        val = txOb.value,
-        alias = txOb.alias;
+        val = txOb.value;
     attr = attr
         ? attr
         : "__default";
     var outOb = {};
-    // if (!(attr in uOb)) {
-    //     outOb = uOb[attr] = {};
-    // } else {
-    //     outOb = uOb[attr];
-    // }
     outOb.value = val,
     outOb.type = "class";
     outOb.classItem = ind;
     outOb.attr = attr;
-    outOb.identity = idval.toString() + txId;
-    outOb.domId = idval;
-    outOb.ref = refAttr;
+    // outOb.identity = idval.toString() + txId;
+    // outOb.domId = idval;
+    // outOb.ref = refAttr;
     if (item !== undefined) {
         outOb.domItem = item;
     }
-    if (alias) {
-        outOb.alias = alias;
-        fixPushArray(alias, syncData, outOb);
-    }
+
     uOb.push(outOb);
 }
 
-var anaStyle = function (txOb, bigOb, syncData, refAttr, styleAttr, idval, txId, item) {
-    var uOb = bigOb[refAttr];
-    if (!(refAttr in bigOb) || typeof bigOb[refAttr] !== "object") {
-        uOb = bigOb[refAttr] = [];
-        uOb._pocket_id = idval;
+var _anaStyle = function (updateObject,txOb, refAttr, styleAttr, idval, txId, item) {
+  var ts=this;
+
+    var uOb = updateObject[refAttr];
+    if (!(refAttr in updateObject) || typeof updateObject[refAttr] !== "object") {
+        uOb = updateObject[refAttr] = [];
+        // uOb._pocket_id = idval;
     }
     var attr = txOb.attr,
-        val = txOb.value,
-        alias = txOb.alias;
+        val = txOb.value;
     attr = attr
         ? attr
         : "__default";
     var outOb = {};
-    // if (!(attr in uOb)) {
-    //     outOb = uOb[attr] = {};
-    // } else {
-    //     outOb = uOb[attr];
-    // }
     outOb.value = val,
     outOb.type = "style";
     outOb.style = styleAttr;
     outOb.attr = attr;
-    outOb.identity = idval.toString() + txId;
-    outOb.domId = idval;
-    outOb.ref = refAttr;
+    // outOb.identity = idval.toString() + txId;
+    // outOb.domId = idval;
+    // outOb.ref = refAttr;
     if (item !== undefined) {
         outOb.domItem = item;
-    }
-    if (alias) {
-        outOb.alias = alias;
-        fixPushArray(alias, syncData, outOb);
     }
     uOb.push(outOb);
 };
 
-var anaFormValue = function (txOb, bigOb, syncData, refAttr, idval, txId, item) {
 
-    var uOb = bigOb[refAttr];
-    if (!(refAttr in bigOb) || typeof bigOb[refAttr] !== "object") {
-        uOb = bigOb[refAttr] = [];
-        uOb._pocket_id = idval;
+
+var _anaFormValue = function (updateObject,txOb,refAttr, idval, txId, item) {
+  var ts=this;
+
+    var uOb = updateObject[refAttr];
+    if (!(refAttr in updateObject) || typeof updateObject[refAttr] !== "object") {
+        uOb = updateObject[refAttr] = [];
+        // uOb._pocket_id = idval;
     }
     var attr = txOb.attr,
-        val = txOb.value,
-        alias = txOb.alias;
+        val = txOb.value;
     attr = attr
         ? attr
         : "__default";
@@ -1523,52 +2030,48 @@ var anaFormValue = function (txOb, bigOb, syncData, refAttr, idval, txId, item) 
     outOb.type = "formValue";
 
     outOb.attr = attr;
-    outOb.identity = idval.toString() + txId;
-    outOb.domId = idval;
-    outOb.ref = refAttr;
+    // outOb.identity = idval.toString() + txId;
+    // outOb.domId = idval;
+    // outOb.ref = refAttr;
     if (item !== undefined) {
         outOb.domItem = item;
-    }
-    if (alias) {
-        outOb.alias = alias;
-        fixPushArray(alias, syncData, outOb);
     }
     uOb.push(outOb);
 };
 
-var anaPockData = function (txOb, bigOb, syncData, refAttr, idval, txId, item) {
-    var uOb = bigOb[refAttr];
-    if (!(refAttr in bigOb) || typeof bigOb[refAttr] !== "object") {
-        uOb = bigOb[refAttr] = [];
-        uOb._pocket_id = idval;
+
+var _anaPockData = function (updateObject,txOb, refAttr, idval, txId, item) {
+  var ts=this;
+    var uOb = updateObject[refAttr];
+    if (!(refAttr in updateObject) || typeof updateObject[refAttr] !== "object") {
+        uOb = updateObject[refAttr] = [];
+        // uOb._pocket_id = idval;
     }
     var attr = txOb.attr,
-        val = txOb.value,
-        alias = txOb.alias;
+        val = txOb.value;
     attr = attr
         ? attr
         : "__default";
     var outOb = {};
-
     outOb.value = val,
     outOb.type = "pocketData";
     outOb.attr = attr;
-    outOb.identity = idval.toString() + txId;
-    outOb.domId = idval;
-    outOb.ref = refAttr;
+    // outOb.identity = idval.toString() + txId;
+    // outOb.domId = idval;
+    // outOb.ref = refAttr;
     if (item !== undefined) {
         outOb.domItem = item;
-    }
-    if (alias) {
-        outOb.alias = alias;
-        fixPushArray(alias, syncData, outOb);
     }
     uOb.push(outOb);
 }
 
-var tagAnaOne = function (ref, copyDom, store, sign, idval, updateObject, syncData, domItem) { //store为解析的时候存档的attr，value，idval表示dom代表的id，sign表示匹配的关键字
+
+
+var _tagAnaOne = function (updateObject,ref, copyDom, store, sign, domId, domItem) { //store为解析的时候存档的attr，value，domId表示dom代表的id，sign表示匹配的关键字
+//domItem表示集合中第几个dom
     var reg = new RegExp("\\#" + sign + "(\\d+)" + sign + "\\#", "gm");
     var textCont = getTextEle(copyDom[0]);
+    //txid是针对到每个属性的id，是更细化的，因为dom可能会有多个变量
     if (textCont.trim()) {
         var textMatch,
             txId,
@@ -1576,10 +2079,11 @@ var tagAnaOne = function (ref, copyDom, store, sign, idval, updateObject, syncDa
         while (textMatch = reg.exec(textCont)) {
             txId = textMatch[1];
             txOb = store[txId];
-            anaContent(txOb, updateObject, syncData, ref, idval, txId, domItem);
+            //对每一个变量所在的位置进行分析。
+            _anaContent(updateObject,txOb, ref, domId, txId, domItem);
         }
     }
-
+    
     var tagName = copyDom[0].tagName;
     if (["INPUT", "TEXTAREA"].indexOf(tagName) !== -1) { //如果为可以输入的内容
         var tagValue;
@@ -1591,7 +2095,7 @@ var tagAnaOne = function (ref, copyDom, store, sign, idval, updateObject, syncDa
         while (textMatch = reg.exec(tagValue)) {
             txId = textMatch[1];
             txOb = store[txId];
-            anaFormValue(txOb, updateObject, syncData, ref, idval, txId, domItem);
+            _anaFormValue(updateObject,txOb, ref, domId, txId, domItem);
         }
     }
 
@@ -1599,7 +2103,7 @@ var tagAnaOne = function (ref, copyDom, store, sign, idval, updateObject, syncDa
     while (textMatch = reg.exec(pockData)) {
         txId = textMatch[1];
         txOb = store[txId];
-        anaPockData(txOb, updateObject, syncData, ref, idval, txId, domItem);
+        _anaPockData(updateObject,txOb, ref, domId, txId, domItem);
     }
 
     var cla = copyDom.attr("class");
@@ -1610,10 +2114,11 @@ var tagAnaOne = function (ref, copyDom, store, sign, idval, updateObject, syncDa
             while (textMatch = reg.exec(str)) {
                 txId = textMatch[1];
                 txOb = store[txId];
-                anaClass(txOb, updateObject, syncData, ref, ind, idval, txId, domItem);
+                _anaClass(updateObject,txOb,ref, ind, domId, txId, domItem);
             }
         });
     }
+    
     var dv = $("<div></div>");
     dv.append(copyDom.clone(true));
 
@@ -1630,81 +2135,83 @@ var tagAnaOne = function (ref, copyDom, store, sign, idval, updateObject, syncDa
             while (textMatch = reg.exec(cval)) {
                 txId = textMatch[1];
                 txOb = store[txId];
-                anaStyle(txOb, updateObject, syncData, ref, cattr, idval, txId, domItem);
+                _anaStyle(updateObject,txOb ,ref, cattr, domId, txId, domItem);
             }
         });
     }
 }
 
-var tagAna = function (ref, copyDom, store, sign, idval, updateObject, syncData) {
+
+var tagAna = function (updateObject,ref, copyDom, signStore, sign, domId) {
     if (copyDom.length > 1) {
         copyDom.each(function (ind, dm) {
             dm = $(dm);
-            tagAnaOne(ref, dm, store, sign, idval, updateObject, syncData, ind);
+            _tagAnaOne(updateObject,ref, dm, signStore, sign, domId,ind);
         });
     } else {
-        tagAnaOne(ref, copyDom, store, sign, idval, updateObject, syncData);
+        _tagAnaOne(updateObject,ref, copyDom, signStore, sign, domId);
     }
 };
 
 var extendDom = {
     _handleDom: function (htmlOb) {
-
         var htmlStr = htmlOb.html;
         var htmlCopy = htmlOb.copyHtml;
         var ts = this;
         var refOb = ts.refOb;
-        // var mode=ts.mode;
-        
         var dom = $(htmlStr);
         var root = $("<div></div>");
         root.append(dom);
         var copyDom = $(htmlCopy);
-        
         var nd = null;
-        var attr = null,
-            val = null;
-            //挂载函数集合
+        var ref = null,
+            domId = null;
+        //挂载函数集合
         var bmount = ts._beforeMount,
             amount = ts._afterMount;
-        var record = ts.record; //是否记录；
+        var attrs = ts.attrs;
+        var updateOb = ts.updateOb; //得到最后返回的实例
         var kw = ts.keyword;
         var outDom = {};
-        // var outRecord={};
         var aim = ts.aim,
             insertType = ts.insertType;
-
-        for (attr in refOb) { //attr 代表名字
-            if (refOb.hasOwnProperty(attr)) {
-                val = refOb[attr];
+        var copyRoot = $("<div></div>");
+        copyRoot.append(copyDom);
+        //拿到匹配的数据
+        var signStore = ts.signStore,
+            keySign = ts.keySign; //keysign为# ..    ..#的标识符
+        var updateObject = {};
+      
+        for (ref in refOb) { //ref 代表名字
+            if (refOb.hasOwnProperty(ref)) {
+                domId = refOb[ref];
                 // 这个地方做的是,每个dom的统一指向，后面是具体指向
-                nd = root.find('[data-xjref=' + attr + ']');
+                nd = root.find('[data-xjref=' + ref + ']');
+                copyNd = copyRoot.find('[data-xjref=' + ref + ']');
                 //移除特质属性
-                if(nd[0].hasAttribute("pocket-data")){nd.removeAttr("pocket-data");}
-                outDom[attr] = nd;
+                if (nd[0].hasAttribute("pocket-data")) {
+                    nd.removeAttr("pocket-data");
+                }
+                outDom[ref] = nd;
                 nd.removeAttr("data-xjref");
-                nd.attr("data-"+kw, val);
+                //正式绑定关键字id
+                nd[0].setAttribute("data-" + kw, domId);
+                tagAna(updateObject, ref, copyNd, signStore, keySign, domId);
             }
         }
+
+        updateOb.init(updateObject, attrs, refOb, ts._update); //传入更新的对象。
         if (typeof aim === "string") {
             aim = $(aim);
         }
         
+        if(typeof ts.mountCallback==="function"){
+          ts.mountCallback.call(updateOb);
+        }
+        
         if (bmount) {
-            runMountFun(bmount, outDom,ts);
+            runMountFun(bmount, outDom,updateOb);
         }
-
-        //在挂载前运行，callback
-        var cback=ts.callback;
-        var tpBack=typeof cback;
-        if(tpBack==="function"){
-          cback(dom);//这里一次性可以拿到所有渲染的dom，而update只能根据ref来。
-        }
-        else if(tpBack==="object"&&typeof cback.beforeMount==="function"){
-          cback.beforeMount(dom);
-        }
-        delete ts.callback;
-
         if (insertType === "append") {
             aim.append(dom);
         } else if (insertType === "prepend") {
@@ -1714,75 +2221,25 @@ var extendDom = {
         }
 
         if (amount) { //先重复写，不用函数，以后和bmount有可能不一样
-            runMountFun(amount, outDom,ts);
+            runMountFun(amount, outDom, updateOb);
         }
         
-        
-        if (record === true) { //需要update情况下
-            var copyRoot = $("<div></div>");
-            copyRoot.append(copyDom);
-            var signStore = ts.signStore,
-                keySign = ts.keySign,
-                updateObject = {},
-                syncData={};//做同步内容使用
-            for (attr in refOb) { //这里重复是不影响视图挂载。
-                if (refOb.hasOwnProperty(attr)) {
-                    val = refOb[attr];
-                    updateObject[attr]=val;
-                    var copyNd = copyRoot.find('[data-xjref=' + attr + ']');
-                    //对每个元素进行分析。
-                    tagAna(attr, copyNd, signStore,keySign,val,updateObject,syncData);
-                }
-            }
-
-            ts.updateObject = updateObject;
-            ts.syncData=syncData;
-            var pockTs=Object.getPrototypeOf(ts);
-            var expArr=pockTs._exps;
-            if(!("_exps" in pockTs)){
-              expArr=pockTs._exps=[];
-            }
-            //插入单个实例
-            expArr.push(ts);
-  
-        }
-        
-        
-        if(tpBack==="object"&&typeof cback.afterMount==="function"){
-          cback.afterMount(dom);
-        }
-
-
     
-        ts.loaded = true;
         
-        delete ts.storeExp;
-        delete ts.refOb;
-        delete ts.insertType;
-        delete ts.aim;
-        delete ts.record;
-        delete ts.signStore;
-        delete ts.signItem;
-        delete ts.aliasArray;
-        delete ts.storeExpItem;
-        
-        var tast=ts.loadTast;
-        if(tast&&tast.length>0){
-          tast.forEach(function(sk,ind){
-            // ts._update(sk.ref,sk.attr,sk.value,sk.sync);
-            ts._update.apply(ts,sk);
-          });
-        }
-        
-        var removeTask=ts.removeTask;
-        if(removeTask&&removeTask.length>0){
-          removeTask.forEach(function(sk,ind){
-            ts.remove(sk);
-          });
-        }
-        
-        delete ts.loadTast;
-        delete ts.removeTask;
+
+        // delete updateOb.loadTast;
+
+        updateOb.loaded = true;
+//只是临时生成，然后就会消失，不用delete
+        // delete ts.storeExp;
+        // delete ts.refOb;
+        // delete ts.insertType;
+        // delete ts.aim;
+        // delete ts.signStore;
+        // delete ts.signItem;
+        // delete ts.aliasArray;
+        // delete ts.storeExpItem;
+        // delete ts.updateOb;
     }
 
 };
@@ -1807,318 +2264,18 @@ var extendDom = {
             }
         }
     },
-    beforeUpdate: function (funOb) {
+    update: function (funOb) {//格式为 refa:{action:{"click":function(){}}}
         if (typeHim(funOb) === "object") {
-            if (!this._beforeUpdate) {
-                this._beforeUpdate = funOb;
+            if (!this._update) {
+                this._update = funOb;
             } else {
-                coverExtend(this._beforeUpdate, funOb)
+                coverExtend(this._update, funOb)
             }
         } 
-    },
-    beforeRemove:function(funOb){
-      if (typeHim(funOb) === "object") {
-          if (!this._beforeRemove) {
-              this._beforeRemove = funOb;
-          } else {
-              coverExtend(this._beforeRemove, funOb)
-          }
-      }
-    },
-    bind:function(newts){//newts要为新对象
-      if(newts.loaded!==true){//必须是record并且加载完了的。
-        return false;
-      }
-      var ts=this;
-      var _exps=ts._exps;
-      if(typeHim(_exps)==="array"){
-        _exps.push(newts);
-      }
-    },
-    noBind:function(){//清空这个对象绑定的内容，在父元素也找不到他。
-      var ts=this;
-      var proto=Object.getPrototypeOf(ts);
-      var _exps=proto._exps;
-      var ind;
-      // delete ts.updateObject,delete ts.syncData;
-      if(_exps&&(ind=_exps.indexOf(ts))!==-1){
-        _exps.splice(ind,1);
-      }
-    },
-    clear:function(){
-      var ts=this;
-      var proto=Object.getPrototypeOf(ts);
-      var _exps=proto._exps;
-      if(proto._exps){
-        delete proto._exps;
-      }
-    },
-    _removeRefInfo:function(ref){
-      var ts=this;
-      var syncData=ts.syncData,updateObject=ts.updateObject;
-      var temp=null;
-      var keys=[];
-      for(var i in syncData){
-        keys.push(i);
-      }
-        var n=keys.length,j=n-1,attr;
-      for(;j>=0;j-=1){
-        attr=keys[j];
-        temp=syncData[attr];
-        if(temp.ref===ref){
-          delete syncData[attr];
-        }
-      }
-        delete updateObject[ref];
-    },
-    _afterRemove:function(dom,ref){
-      var ts=this;
-      return function(){
-      ts._removeRefInfo(ref);
-        dom.remove();
-      }
-    },
-    removeAll:function(ref,bcallback){
-      var ts=this;
-      var _exps=ts._exps;
-      if(!_exps){return false;}
-      _exps.forEach(function(obj,ind){
-          obj.remove(ref,bcallback);
-      });
-    },
-    remove: function (ref,bcallback) {
-      var ts=this;
-      if(!ref){return false;}
-      if(ts.loaded!==true){
-        var task=ts.removeTask;
-        if(!("removeTask" in ts)){
-          task=ts.removeTask=[];
-        }
-        task.push(ref);
-      }
-      else{
-        var updateObject=ts.updateObject;
-        var refOb=updateObject[ref];
-        if(!refOb){return false;}//找不到返回
-        var id,kw=ts.keyword;
-        if(typeof refOb==="object"){
-          id=refOb._pocket_id;
-        }
-        else{
-          id=refOb;
-        }
-        var dom=$('[data-' + kw + '=' + id + ']');
-        if(dom.length===0){//表示人为删除过这个dom
-        ts._removeRefInfo(ref);
-        return false;
-        }
-        var syncData=ts.syncData;
-        if(typeof bcallback!=="function"){
-          var beforeRemove=ts._beforeRemove;
-              if(beforeRemove&&(ref in beforeRemove)){
-                bcallback=beforeRemove[ref];
-              }
-        }
-        if(typeof bcallback==="function"){
-            bcallback.call(ts,dom,ts._afterRemove(dom,ref));
-        }
-        else{
-            ts._afterRemove(dom,ref)();
-        }
-      }
-    },
-    updateAll:function(opt){
-      var ts=this;
-      var _exps=ts._exps;
-      if(!_exps){return false;}
-      _exps.forEach(function(obj,ind){
-          obj.update(opt);
-      });
-    },
-    update: function (opt) {
-        var ts = this;
-        var loaded = ts.loaded;
-        // var sync=opt.sync;
-        var ref = opt.ref,
-            value = opt.value,
-            sync = opt.sync,
-            attr = opt.attr,
-            beforeUpdate = opt.beforeUpdate;
-
-        if (loaded !== true) {
-            var tast = ts.loadTast;
-            if (!ts.loadTast) {
-                tast = ts.loadTast = [];
-            }
-            // tast.push({attr:attr,ref:ref,value:value,sync:sync,beforeUpdate:beforeUpdate});
-            tast.push([ref, attr, value, sync, beforeUpdate])
-        } else {
-            ts._update(ref, attr, value, sync, beforeUpdate);
-        }
     }
 }
     miniExtend(prototypePocket, extendDomLife);
-    var equalstyle=function(style,val1,val2){//这里暂时只是做了少许的认证
-  var ifPx=false;
-  if(val1.indexOf("px")!==-1){
-    ifPx=true;
-    val1=valPx(val1);
-  }
-  if(val2.indexOf("px")!==-1){
-    ifPx=true;
-    val2=valPx(val2);
-  }
-  if(ifPx===true){
-    return +val1===+val2;
-  }
-  else{
-    return val1===val2;
-  }
-}
-var extendUpdate={
-  _syncData: function (alias, identity, value, triggerDom) {
-        var ts = this;
-        var syncData = ts.syncData;
-        var kw = this.keyword;
-        var aliasArr = syncData[alias];
-        if (!aliasArr) { //如果没有取到，清空
-            return;
-        }
-    
-        aliasArr.forEach(function (iob, ind) {
-            var iden = iob.identity;
-            if (iden !== identity) {
-                ts._runAna(iob, value, $('[data-' + kw + '=' + iob.domId + ']'), null, null, triggerDom);
-            }
-        });
-    },
-    _updateCb: function (obj,refDom,sync) {
-        var ts = this;
 
-        return function (val) {
-
-            var alias = obj.alias;
-            var identity = obj.identity;
-            var type=obj.type;
-          // console.log(formValue)
-            if (type === "textContent") { //后面要判断是否为可以编辑的dom
-                if (hasData(val)) { //如果值不为空
-                    var textDom = getTextEle(refDom[0],val);
-                    // console.log(123)
-                    // textDom.nodeValue = val;
-                    obj.value = val; //覆盖旧的值
-                }
-            } else if (type === "class") {
-                if (hasData(val)) {
-                    var cla = getAllClass(refDom.attr("class"));
-                    var lg = cla.length;
-                    var classItem = obj.classItem;
-                    var aimClass = cla[classItem];
-                    if (aimClass !== val) { //在不想等的情况下才会重新复制
-                        refDom.removeClass(aimClass).addClass(val);
-                        obj.classItem = lg - 1; //换到最后一个。
-                        obj.value = val;
-                    }
-                }
-              
-            } else if (type === "style") {
-                if (hasData(val)) {
-                    var style = obj.style;
-                    var nowSvalue = refDom.css(style);
-                    if (!equalstyle(style, nowSvalue, val)) { //这里的判断以后要更加的细致。10和10px是一样的。
-                        refDom.css(style, val);
-                        obj.value = val;
-                    }
-                }
-            } else if (type === "formValue") {
-                //不会再反射到dom的value上面了，因为是根据东西来的，除非值不一样。
-                var fvalue = refDom.val();
-                if (hasData(val) && val.toString() !== fvalue.toString()) { //两次值不等的情况下
-                    refDom.val(val);
-                    obj.value = val;
-                } else {
-                    obj.value = fvalue;
-                } 
-            }
-            else if(type==="pocketData"){
-              if(obj.value!==val){
-              obj.value=val;
-            }
-            }
-            if (sync === true && alias) {
-              if(alias.indexOf(",")===-1){
-                ts._syncData(alias, identity, obj.value, refDom); //只有表单才是只传入value值
-              }
-              else{
-                alias=alias.split(",");
-                alias.forEach(function(al){
-                  ts._syncData(al, identity, obj.value, refDom);
-                })
-              }
-            }
-        }
-    },
-    _runAna: function (obj, val, refDom, sync, beforeUpdate, triggerDom) { //无trigger表示当前的发生
-        var ts = this;
-        var oldValue = obj.value; //旧的值
-        var domItem = obj.domItem; //ref为集合的时候，取到具体一个
-        var attr = obj.attr;
-        if (typeof domItem === "number") {
-            refDom = refDom.eq(domItem);
-        } //取得具体dom
-        var obBeforeUpdate = ts._beforeUpdate;
-        
-        if (typeof beforeUpdate !== "function"&&typeof obBeforeUpdate==="object") {
-            beforeUpdate = obBeforeUpdate[obj.ref+"?"+attr];
-        }
-        //得到回调的update的运行对象
-        var runObj = {
-            lastValue: oldValue,
-            value: val,
-            trigger: triggerDom,
-            current: refDom
-        };
-        
-        // console.log(obj)
-        if (typeof beforeUpdate === "function") {
-            beforeUpdate.call(ts,runObj, ts._updateCb(obj,refDom,sync)); //可以为异步请求，
-        } else {
-            ts._updateCb(obj,refDom,sync)(val);
-        }
-    },
-    _update: function (ref, attr, value, sync, beforeUpdate) {
-        var ts = this;
-
-        var syncData = ts.syncData,
-            updateObject = ts.updateObject;
-        if (!syncData) {
-            return false;
-        }
-        
-        var infoDom = updateObject[ref];
-
-        
-        if (!infoDom) {
-            return false;
-        }
-        var kw = ts.keyword;
-        var id = infoDom._pocket_id;
-
-        var refDom = $('[data-' + kw + '=' + id + ']');
-        if(refDom.length===0){
-          ts._removeRefInfo(ref);
-          return false;
-        }
-        // console.warn(refDom);
-
-        infoDom.forEach(function (ob, ind) {//满足的统一处理
-            if (ob.attr === attr) { //如果属性为attr，减少运行次数
-                ts._runAna(ob, value, refDom, sync, beforeUpdate);
-            }
-        })
-    }
-}
-    miniExtend(prototypePocket, extendUpdate);
     Pocket.prototype = prototypePocket;
     // gbl.Pocket = Pocket;
 

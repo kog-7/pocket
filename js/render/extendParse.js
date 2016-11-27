@@ -64,12 +64,13 @@ var extendParse={
   var rd=(100*(Math.random())).toFixed(0);
   return "pocket_var"+rd;
 })(),
-  _toSignString:function(attr,val,alias){
+  _toSignString:function(attr,val,save){//save表示保存相关的变量值
+    if(save!==true){return val;}//不保存，原内容返回
     var ts=this;
     var keySign=ts.keySign;
     var item=ts.signItem+=1;
     item=item.toString();
-    ts.signStore[item]={attr:attr,value:val,alias:alias};
+    ts.signStore[item]={attr:attr,value:val};
     return "#"+keySign+item+keySign+"#";
   },
    stringEachArr: function(str, obs, item, blg) {//从_render进入的入口
@@ -87,9 +88,7 @@ var extendParse={
          middleStr=str.slice(lastInd,ind);
          outstr+=middleStr;
          copyOutStr+=middleStr;
-
          matchVal=ts.handleStr(matchStr,obs,item,blg);
-      
          if(typeof matchVal!=="object"){
            outstr+=matchVal;
            copyOutStr+=matchVal;
@@ -101,7 +100,7 @@ var extendParse={
          else{
           //  console.log(matchVal)
             outstr+=matchVal.value;
-            copyOutStr+=ts._toSignString(matchVal.attr,matchVal.value,matchVal.alias);
+            copyOutStr+=ts._toSignString(matchVal.attr,matchVal.value,matchVal.save);
          }
         //  outstr+=matchVal;
          lastInd=reg.lastIndex;
@@ -116,7 +115,7 @@ var extendParse={
        var ts = this;
        var mat = ts.handExpress(str, obs, item, blg);
        var keySign=ts.keySign;
-       
+  
        if (["number", "string"].indexOf(typeof mat) !== -1) {
            return mat;
        }
@@ -135,7 +134,7 @@ var extendParse={
        var ts = this;
        var match = this.match;
        var strarr = anaTag(strhtml, match);//分析{{}}关键字
-       var callback = opt.callback;
+      //  var callback = opt.callback;
        var lastData = opt.lastData;
        var template = "";
        var newItem;
@@ -232,7 +231,7 @@ var extendParse={
 var returnOut={html:outstr,copyHtml:copyOutStr};
       if(!mid){//表示为初始运行环境，才出去入口
 //data为初次原始的data
-      ts._handleDom(returnOut,callback);
+      ts._handleDom(returnOut);
     }
        return returnOut;
    }

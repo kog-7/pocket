@@ -332,20 +332,7 @@ var hasData=function(val){//项目逻辑里，是否有值
 }
 
 
-var fixPushArray=function(alias,syncData,outOb){
 
-  var aliasArr=alias.split(",");
-  var temp=null;
-  aliasArr.forEach(function(al,ind){
-    temp=syncData[al];
-    if(!(al in syncData)){
-      temp=syncData[al]=[];
-    }
-    temp.push(outOb);
-  });
-  
-  
-}
 
 
 

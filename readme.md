@@ -1,111 +1,150 @@
 # Pocket
 
-Pocket 是轻量的javascript视图层框架
+Pocket 是方便处理连串异步过程的javascript视图层框架
 
-* **简单便捷** : Pocket使用起来简单。预先设置视图生命周期处理函数，在templates文件夹里面设置模版，根据情况渲染和更新视图。
-* **异步化** : 数据获取和功能运行，支持异步的写法和处理。
-* **组件支持** : 使用文件模式来组合组件，方便移植和接入其他框架。
-* **使用场景** : 适用于中小型项目，大项目中某部分视图，广告和第三方视图内容的获取，基于jquery操作ajax，操作dom内容
-* **小体积** : 60.1k,压缩后只有18.3k
 
-![pocketExp](http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocketjs.gif)
+![](http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocketjs.gif)
 
-## 例子
-###### templates/election.html ... templates/sub/status.html ... templates/sub/other.html
-```html 
-//election.html
-<div ?REFelection?>
-<input type="text" name="exp"  ?REFput? value="?:default name@name?"/>
-<button ?REFbtn?>?city.guangzhou@name?<span ?REFbtnItem?>?click?</span></button>
-<p ?REFvote?>?city.shanghai@name|upper?</p>
-<button ?REFtoggle?>toggle</button>
-{{scope info as ?message?}} @include(sub/status.html) {{/scope}}
-</div>
 
-//status.html 
-<div ?REFstatus?>?info.age?</div>
-@include(other.html)
+* <font size=2>pocket用于中小项目，或者是项目中的某些异步打包过程比较多的小模块。</font>
+* <font size=2>pocket使用起来非常简单，核心api只有6个，能够很方便的处理连串的异步执行和异步收集执行。</font>
+* <font size=2>使用文件模式创建模版和子模版，附加模版处理语法</font>
+* <font size=2>由于源码里面用到了jquery的ajax和dom处理，使用之前要加载jquery</font>
+* <font size=2>体积小，压缩后只有18.5k
+
+#### 核心流程
+![](http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocket.png)
+
+
+
+#### 为什么使用
+平常的工作内容或者个人作业，除了大项目，还有很多偏小型的项目，比如h5页面，一些逻辑和结构偏小的web页面，或者是引入某些第三方模块这些。如果都用webpack和react这些大东西可能有些麻烦。使用pocket非常简单，提供一个视图的基本操作流程和异步或同步下的状态更新+状态回调，基于html文件的模版学习容易也方便转换。
+
+#### 内容描述 
+<font size=2>假如有个场景，界面由两个内容组成，一个是请求信息按钮，一个是即将由数据组成其内容的div。  
+现在的需求是，点击按钮，div上面出现等待动画，按钮形状变成一个进度条，同时请求ajax并且进度条开始走动，在ajax请求完成的时候，div的内容被渲染出来，div的加载动画消失，按钮从进度条样式恢复成按钮样式</font>  
+
+图:
+![](http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocketexp.gif)
+
+> <font size=2>标签描述：按钮button里面有loading功能的div，有显示文字的span，div里面有使用js等待动画的三个span。</font> 
+
+如果通过pocket完成上面的描述主要过程如下。
+* <font size=2>首先确定好关于按钮标签的名字/状态(btn/begin,process,complete)，按钮进度条标签名字/状态(position/run,stop)，div信息外壳标签名字/状态(loading/run,stop).并确定好运行过程中不停变化的相关数据对象格式
+* 在templates文件夹中确定好模版html片段和子模版html片段，根据情况给dom设置名字，通过?REFbtn?，设置变量```<button ?REFbtn?>?name:保存?</button>```
+* <font size=2>通过pocket实例的update方法来设置相关dom和其状态在更新触发过程中需要运行的函数，比如```.update({btn:{begin:function(opt,cb){}}...)//opt属性有trigger（从哪里bind同步过来），current（当前元素），value，message```等等
+* <font size=2>通过setCallback方法，类似```setCallback(function(){this.btn.bind("complete","loading.run")})```来绑定同步关系。相关过程为，在btn complete状态所对应的前面update里的回调函数在执行过程中，如果运行cb(123)，会把123和triggert:btn（jq对象）传输给loading.run在update下面的回调函数并运行(*loading.run也可以绑定其他dom的状态，让回调一直运行下去*)
+* <font size=2>给目标dom位置通过```useData(function(cb){$.ajax....(cb(data))}).render();```进行数据和模版的合并，并渲染出前面描述的请求按钮和显示信息的div这些元素
+* <font size=2>通过beforeMount方法（dom生成但是还没有挂载之前）给btn或者其他dom绑定事件
+* <font size=2>在btn绑定的事件函数里面生成一个data对象数据，通过updateState方法来对这个数据进行一步一步的处理。并自动执行前面update方法绑定的相关回调，updateState只应该用于处理数据，包括异步和同步（异步支持队列式的一个个异步运行，也支持同时运行所有异步，在所有异步完成后再收集运行）
+  ```
+  //ts是在beforeMount中btn对应的函数里的this  
+   var data={items:[],ctr:false};
+   ts.btn.sync().updateState("begin",function(cb,run){
+     run(),setTimeout(....cb(data))})
+   .updateState("process",function(cb,run,lastData,store){
+     run(lastData);$.ajax(..).done(data){someHandle(lastData);run(lastData);
+       cb(lastData);}})
+   .updateState("complete",function(cb,run,lasteData){
+     ......
+     })
 ```
+* 接下来，相关代码会根据改变状态来同步或者异步的处理相关业务过程所对应的唯一一个对象数据，并根据情况来执行连串的函数回调，整体达到业务目标。
 
-###### index.html
+> <font size=2>相关模版片段可见文件夹example/write 通过setTimeout模拟异步
+
+> min.js链接地址 http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocket.min.js
+
+##例子
+###### 模版：templates/tmp.html ... templates/sub.html 
+```html
+//tmp.html 
+<article class="" ?REFart?>
+  @include(sub.html)
+<button  ?REFbtn? >
+  //name是变量值，保存是变量没有匹配后的默认值，&表示模版渲染完成后保存btn里面对应的变量为name的数据
+?name:保存&?
+</button>
+<div ?REFcontent?>内容</div>
+<div ?REFnumber?>?number?</div>
+//sub.html 
+<h1>base example</h1>
+```
+###### index.html里面的内容操作
 ```js 
-<div id="content"></div>
-<script type="text/javascript" src="http://cdn.bootcss.com/jquery/3.1.1/jquery.min.js"></script>
-<script src="http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocket.min.js"></script>
+<div id="cont"></div>
 <script>
-var election = new Pocket("templates/election.html","#content");//生成一个新的视图模型实例
-election.beforeMount({
-    put: function(put, toggle) {var ts=this;var time=ts.attrs.time;
-        //绑定jq对象dom的事件，输入相关内容后同步更新其他dom的内容
-        toggle.on("click",function(){put.toggleFade(time);});
-        put.on("keyup",function(){ts.update({ref:"put",attr:"name",sync:true});})},
-    btn:function(btn){var ts=this,item=0;
-        btn.on("click",function(){item+=1;ts.update({ref:"btnItem",attr:"click",value:item})})}
-});
-election.afterMount({
-    status: function(dom) {//....}
-});
-election.beforeUpdata({
-    "vote?city.shanghai": function(opt, cb) {
-        var val = opt.value, trigger = opt.trigger, current = opt.current;
-        //....some process
-        setTimeout(function() {cb(val+"like ajax async get data")}, 2000);
-    },//当更新当前元素的相关位置时，异步处理数据后再插入
-    "btnItem?click":function(opt,cb){cb(opt.value+" number");}
-});
-//返回操作具体渲染元素的实例
+//指定容器位置和模版位置
+  var pok = new Pocket("#cont", "templates/tmp.html");
 
-var newEle=election.useData(function(cb){
-    cb({city:{shanghai:"li",guangzhou:"liu"},click:0,message:{age:100}});//可以ajax请求成功后cb(data)
-    })
-    .render({insert:"append",attrs:{time:2000}})//追加dom的模式
-    .setCallback(function(){console.log("render over")});
+  //每次相关视图渲染后的回调，可以在里面绑定update中状态与状态的同步运行关系，我们设置btn和number的同步关系
+  //如果有var pok2=new Pocket("#cont2"...),那么btn还可以同步到另外一个pocket实例里面的状态，使用this.btn.bind("begin","someDom.someStatus",pok2),pok2表示同步状态的环境，不写为当前pok当次渲染的环境
+  pok.setCallback(function(){this.btn.bind("begin","number.add");});
+  pok.beforeMount({
+    btn:function(btn){
+      var ts=this;
+      var attrs=ts.attrs;//attrs是后面render相关模版时，临时传入的数据，可以不用
+      var data={items:[],step:0};
+      btn.on("click",function(){
+      ts.btn.sync().updateState("begin",function(cb,run,lastData,store){//lastData为上一个步骤传过来的数据，这里是第一个步骤，所以为空
+        //store为相关dom绑定的数据，比如<button ?REFbtn?>?name:保存?</button>中的变量信息
+        //这里store为[{attr:"name",value:"保存",type:"contentText",domItem:0}],
+        //domItem可能有，比如多个dom用了相同的REF，这里表示为第几个dom对应的数据,具体参考后面的模版-变量说明
+        //store会存储初始模版中的数据，前提条件是要在最后用&，才会把数据保存
+        run(data);//触发下面update方法里面的回调，data对应回调里面的opt.value
+        data.step=1;
+        setTimeout(function () {
+          cb(data);
+        }, 1000);
+      })
+      .updateState("process",function(cb,run,lastData,store){
+        run(lastData);
+        lastData.step=2;
+        cb(lastData);
+      })
+      
+    })},//处理关于btn dom的内容，同时也传入content dom，dom都是jq类型
+    content:function(content,btn){//处理content为主题的相关内容
+      content.on("click",function(){
+        btn.toggle();
+      });
+    }
+  });
+  pok.afterMount({})//和beforeMount类似，处理，设置相关元素挂载在页面上以后的运行
+  pok.update({
+    btn:{begin:function(opt,cb){
+      var current=opt.current;//当前元素
+      var trigger=opt.trigger;//从哪个元素触发同步来，这里没有被谁触发来，为空
+      var value=opt.value;//前面run里面传输的数据
+      var message=opt.message;//与前面updateState里面的store同等
+      setTimeout(function() {cb(value.items)}, 10);
+    },
+    process:function(){...}
+  },
+  number:function(opt,cb){
+      var current=opt.current;//当前元素
+      var trigger=opt.trigger;//从哪个元素触发同步来,如果是点击btn后同步触发的，这里trigger为btn这个jq对象
+      var value=opt.value;//如果是btn触发同步过来的为上面btn.begin里面cb传输的value.items;
+      cb();//同样还可以传输给其他的状态。
+  }
+  });
 
-setTimeout(function() {newEle.remove("status");}, 6000);
+
+//具体渲染,useData里面的数据通过cb可以同步或者异步传入到render里面
+pok.useData(function(cb) {setTimeout(function() {cb({name:"保存",number:0}); }, 1000) }).render({insert:"append"}).setCallback(function(){//this...});
+//this等同于前面setCallback，beforeMount等等里面的this
+//render的参数都可选，这里的insert:append表示为向下追加，默认为全部替换
 </script>
 ```
 
-## 定义并操作视图
+##根据使用的api
 
-
-#### 例子 templates/election.html ... templates/ele/smallSize.html ...  templates/ele/bigSize.html  ... templates/ele/img/put.html 
+####生成一个实例
 ```js 
-//templates/election.html
-<h2>?title|upper?</h2>
-{{for ele in ?elements?}}
-    {{for tps in ["image","text"]}}
-        <div>tps</div>
-    {{/for}}
-        {{if ?ele.width? < 200}}
-            {{scope smallSize as ?ele?}}
-            @include(ele/smallSize.html);
-            {{/scope}}
-        {{/if}}
-        {{if ?ele.width? > 1000}}
-            {{scope bigSize as ?ele?}}
-            @include(ele/bigSize.html)
-            {{/scope}}
-        {{/if}}
-{{/for}}
-
-//templates/ele/smallSize.html  
-<div>?smallSize.width?</div>
-....
-@include(img/put.html);
-....
-//同样类似bigSize.html  等等
-
-
-
-```
-
-#### 定义一个视图
-
-```js 
-//第一个参数为模版的url地址，第二个参数为目标容器的id，参数可选
-//可以使用election.setTemplate("templates/election.html") setTemplate第二个参数可以为"jsonp",表示请求为jsonp ,或者是election.setHtml("<div>exp</div>")直接指定html，
-//可以使用election.setContainer("#content")指定容器
-var election = new Pocket("templates/election.html","#content");
+//第一个参数为目标容器的id，第二个参数为模版的url地址，参数可选
+//可以使用pok.setTemplate("templates/tmp.html") setTemplate第二个参数可以为"jsonp",表示请求为jsonp ,或者是pok.setHtml("<div>exp</div>")直接指定html，
+//可以使用pok.setContainer("#content")指定容器
+var pok = new Pocket("#content","templates/tmp.html");
 ```
 
 #### 预先设置视图生成的相关周期
@@ -114,58 +153,76 @@ var election = new Pocket("templates/election.html","#content");
 //通过REF指定相关dom然后传入运行周期
 //对btn进行处理，function(button,cont) ->第一个参数表示btn元素，参数名字任意。第二个用具体名字cont指向了REFcont这个div元素
 //button,cont都是jq对象
-election.beforeMount({//表示渲染的视图插入#content元素之前
+pok.beforeMount({//表示渲染的视图插入#content元素之前
     btn:function(button,cont){
-        // this代表渲染后生成的渲染对象，可以使用this.update(....)来更新相关dom
-        var attrs=this.attrs;//attrs是在渲染视图后传入的attrs数据
-        button.on("click",function(){cont.html()...})
+        // this代表渲染后生成的更新对象集合updateOb，this.btn表示一个更新对象，this.btn.sync().updateState(..)，或者this.btn.collect().updateState(..)等
+        。。
     }
 });
 //表示渲染的视图插入#content元素之后
-election.afterMount({
+pok.afterMount({
     btn:function(btn){}
 });
 
 ```
 
-#### 预先设置视图更新和删除的相关周期
-```js
-//假设已经设置了模版 <input ?REFnumber? value=?data.item@no?><div>content<span ?REFsn?>?data.item@no?</span></div>
-//使用@联合ref名字和变量名字（需要使用"包住）
-//每一次用update({ref:"number",attr:"data.item",sync:true,value:"abcdef"}); 
-//sync为true表示同步，number更新后sn-span也会同步更新
-//value表示要更改的内容，如果没有value属性，在input中，为input输入的内容
-election.beforeUpdate({
-    "number@data.item":function(opt,cb){
-        var val=opt.value;//这里表示input输入的value值 
-        var trigger=opt.trigger;//这里表示是哪个dom触发了number的更新。如果直接给number,data.item update，trigger为undefined
-        var current=opt.current;//表示当前元素
-        var lastValue=opt.lastValue;//表示上一次的数据
-        cb(val+" ..example");
-    },
-    "sn@data.item":function(opt,cb){
-        var val=opt.value,trigger=opt.trigger;//如果是number触发，这里为number jq dom元素
-        var current=opt.current;//为sn元素
-        setTimeout(function() {//异步更新
-            cb(val+" ...example");
-        }, 3000);
-    }
-});
-election.beforeRemove({
-    number:function(dom,cb){
-        //dom表示number这个jq 对象
-        dom.fadeOut("slow",function(){
-            cb();//执行cb才会真正的删除对象
-        });
-    }
-})
+#### 更新对象
+```js 
+//表现为前面周期中的this
+//updateOb.btn  update.content 分别对应前面模版中的REFbtn,REFcontent所生成的更新对象，
+updateOb.btn.updateState("begin",val);//第一个begin为状态，这里的val应该为字符串，对象等，如果为函数不会执行，只做值传输
+updateOb.sync()
+.updateState("begin",fun)
+.updateState("begin",fun);
+//这里fun为(cb,run,lastData,store)=>  ,cb是一个函数cb(someData)表示传输数据到下一个updateState中，
+//run(someData),表示运行相关begin状态在前面update中对应的回调
+//lastData,比如第二个updateState的lastData来自第一个updateState中的cb(someData)
+updateOb
+.collect(function(data){//data,为后面所有updateState里面cb(someData)数据的集合，表示所有异步过程全部完成后的回调})
+.updateState("begin",fun)
+.updateState("begin",fun);
+//collect和sync类似，只是collect会让updateState中的内容先同时运行
+//如果里面有异步，那么等待所有的异步完成后会运行collect()方法里面的回调
+```
 
+#### update预设
+```js  
+//设置相关dom对应状态的回调
+ pok.update({
+    btn:{begin:function(opt,cb){
+      var current=opt.current;//当前元素
+      var trigger=opt.trigger;//从哪个元素触发同步来，这里没有被谁触发来，为空
+      var value=opt.value;//前面run里面传输的数据
+      var message=opt.message;//与前面updateState里面的store同等
+      setTimeout(function() {cb(value.items)}, 10);
+    },
+    process:function(){...}
+  },
+  number:function(opt,cb){
+      var current=opt.current;//当前元素
+      var trigger=opt.trigger;//从哪个元素触发同步来,如果是点击btn后同步触发的，这里trigger为btn这个jq对象
+      var value=opt.value;//如果是btn触发同步过来的为上面btn.begin里面cb传输的value.items;
+      cb();//同样还可以传输给其他的状态。
+  }
+  });
 ```
 
 
+#### 传入数据并渲染
+```js 
+//使用数据并且渲染视图,useData中运行cb会把数据传给render
+//render可以使用可选参数，render({attrs:{somemsg:...},insert:"append/prepend",jsonp:false})  
+//attrs表示临时传入的数据,insert可以为append或者prepend表示视图插入前面还是后面
+//url参数会覆盖election对象设置的templateurl。template属性可以直接指定<div>xx</div>，覆盖前面使用setHtml的内容。
+var electme=election.useData(function(cb){$.ajax({url:"info/vote",dataType:"json"}).done(function(data){cb(data);});}).render();
+```
+
+
+## 模版相关
+
 #### 设置过滤器 
 ```js 
-//给所有的模版设置过滤器，暂时没有做每个视图单独设置过滤器
+//给所有的模版设置过滤器
 Pocket.setFilter({
 toPx:function(variableValue,item,length){
 //variableValue 是？？解析出来的值，如果是?wd,hg?多变量的，为一个数组包括所有
@@ -181,89 +238,6 @@ return ....//返回想显示的内容
 //在handle(val,item,length){val=copy(val);//用一个复制函数拷贝一份}
 ```
 
-
-#### 传入数据并渲染
-```js 
-//使用数据并且渲染视图,useData中运行cb会把数据传给render
-//render可以使用可选参数，render({attrs:{somemsg:...},insert:"append",jsonp:false,url:"/templates/ele.html",record:true})  
-//attrs表示临时传入的数据,insert可以为append或者prepend表示视图插入前面还是后面,jsonp为true的话表示请求类型为jsonp，
-//url参数会覆盖election对象设置的templateurl。template属性可以直接指定<div>xx</div>，用了相关属性会忽略url参数。
-//data属性，如果没有使用useData，可以直接在render里面指定data。record属性为true表示渲染后的视图有更新功能，默认为true,设置为false则后续的视图不能update，remove。
-var electme=election.useData(function(cb){$.ajax({url:"info/vote",dataType:"json"}).done(function(data){cb(data);});}).render();
-```
-
-#### 更新规则与执行更新
-
-```js
- <input ?REFnumber? value=?data.item@no?><div>content<span ?REFsn?>?data.item@no?</span></div>
- //可以在beforeMount和beforeMount中使用this.update(..)来更新
- //其中ref表示引用的ref值，attr表示更新哪块内容，sync表示当前元素更新时候，是否有其他元素同步跟新，同步更新的元素通过?...@no?来决定。
- //可以使用?data.item@no,age? 表示多个同步。
- 
- //在使用input 更新的时候，electme.update({ref:"number",attr:"data.item",sync:true})不用value属性将会使用input的输入值
- electme.update({ref:"number",attr:"data.item",sync:true,value:"exp"});//更新当前render出来的视图
-//如果使用election.updateAll({ref:"number",attr:"data.item",sync:true,value:"exp"});那么所有render出来的视图都会被更新
-//如果使用?@no? 这种初始没有属性的变量内容，在update中用__default代替，比如electme.update({ref:"number",attr:"__default",sync:true,value:"exp"});
-
-```
-
-#### 支持的更新类型 
-* 内容更新 
-```js  
-<div ?REFheader?>?cont@val?</div>
-electme.update({value:"new cont",attr:"cont",ref:"header"});
-```
-* class更新
-```js 
-<div class="?ani? header" ?REFheader?></div>
-electme.update({value:"fade",attr:"ani",ref:header})
-```
-* style更新 
-```js 
-<div style="width:?wd?;background:red" ?REFheader?></div>
-electme.update({value:"100",attr:"wd",ref:header});
-```
-* input更新 
-```js  
-<input type="text"  ?REFput? value="?val@val?"/>
-electme.update({attr:"val",ref:"put",sync:true});
-```
-* textarea更新
-```js 
-<textarea ?REFtext?>?val@val?</textarea>
-electme.update({attr:"val",ref:"text",sync:true});
-```
-* 自定义数据更新 
-```js  
-//pocket-data属性会在dom渲染的时候自动删除,只是作为一个数据参考点
-<div pocket-data="?data@val?" ?REFheader?></div>
-electme.update({attr:"data",ref:"header",sync:true});
-```
-
-
-
-#### 更新实现方式
-* 在每次渲染后会根据ref，attr存储少量字符串信息组成对象，然后在使用update后对比对象信息，进行更新。
-
-#### 删除
-```js 
-//如果设置了beforeRemove({number:function(){...}})，会先运行相关函数，然后再删除dom
-electme.remove("number");
-//render的所有number对象被删除
-election.removeAll("number");
-```
-
-#### 视图实例与具体渲染实例的绑定
-```js 
-electme.noBind();//解除election对electme的绑定，election.updateAll(..)不会影响到electme
-
-election.clear();//清除在视图实例上的所有绑定
-
-```
-
-
-
-## 编写组件模版
 
 
 #### 变量
@@ -294,7 +268,37 @@ election.clear();//清除在视图实例上的所有绑定
     {{/if}}
 {{/if}}
 
+//如果使用?width&? 使用了&会把相关数据存起来作为前面提到的store和message
+//存储规则
+
+内容
+<div ?REFheader?>?cont&?</div>
+为{value:"new cont",attr:"cont",type:"contentText"};
+
+class
+
+<div class="?ani&? header" ?REFheader?></div>
+为{value:"fade",attr:"ani",type:"class",classItem:0}//0为第1个class
+
+style 
+
+<div style="width:?wd&?;background:red" ?REFheader?></div>
+为{value:"100",attr:"wd",type:"style",style:"width"};
+
+input 
+ 
+<input type="text"  ?REFput? value="?val&?"/>
+为{attr:"val",ref:"put",type:"formValue"};
+
+自定义数据 
+
+//pocket-data属性会在dom渲染的时候自动删除,只是作为一个数据参考点
+<div pocket-data="?data&?" ?REFheader?></div>
+为{attr:"data",ref:"header",type:"pocketData"});
+
 ```
+
+
 #### 通过scope形成子组件
 ```js 
 //使用scope,  pic.js 将会使用数据 ?data.content.pic?,并赋予给pic
@@ -302,7 +306,7 @@ election.clear();//清除在视图实例上的所有绑定
 //?data.content.pic? 为 6 ,在ele/pic.html中,能使用?pic? 得到6
 //跟变量等同也可以使用过滤?data.content.pic|picHandle?
 {{scope pic as ?data.content.pic?}}
-'@include(ele/pic.html)'
+@include(ele/pic.html)
 {{/scope}}
 
 //在ele/pic.html 
@@ -310,20 +314,10 @@ election.clear();//清除在视图实例上的所有绑定
 <div>?pic.y?</div>
 ```
 
-#### 同步更新元素设置
-```js 
-//在得到相关数据后，如果更新item值并且设置为同步更新，那么div的内容会变化
-//如果在更新input并设置模式为同步，div和span的content值也会变化
-<div ?REFnumber?>?:0@item,age?</div>
-<button ?REFpraise?>?praise@item?</button>
-<input type="text" ?REFageInput?  ?age@age? />
-age is:<span ?REFdes?>?age@age?</span>
-```
-
-
 #### @include
 ```js 
 //载入其他位置的html，使用相对于当前文件的url
+//可以使用'@include(ele/pic.html)'，单引号有无都可
 @include(ele/pic.html);
 ```
 
@@ -335,4 +329,18 @@ age is:<span ?REFdes?>?age@age?</span>
 
 ## 备注与更新
 * 支持amd require，输出名字为pocket
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

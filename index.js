@@ -8,23 +8,23 @@
 (function (gbl) {
   if(!gbl){return;}
     '@include(js/utils.js)'
+    
+    '@include(js/config.js)'
+    
     var templateCache = {};
-    var Pocket = function (url, aim) {
-        var privateInfo = {
-            url: url,
-            aim: aim
-        };
-        this.usePrivate = function (attr, val) {
-            if (val !== undefined) {
-                privateInfo[attr] = val; //如果优值
-            } else {
-                return privateInfo[attr];
-            }
-        };
+    var Pocket = function (aim,url) {
+      if(typeof aim==="string"){this.aim=aim;}
+      if(typeof url==="string"){this.url=url;}
+      this._init();
     };
     var prototypePocket = {
         constructor: Pocket
     };
+    
+    
+    '@include(js/render/extendInit.js)'
+    miniExtend(prototypePocket, extendInit);
+    
     '@include(js/render/extendFilter.js)'
     miniExtend(prototypePocket, extendFilter);
 
@@ -45,8 +45,7 @@
 
     '@include(js/render/extendDomLife.js)'
     miniExtend(prototypePocket, extendDomLife);
-    '@include(js/render/extendUpdate.js)'
-    miniExtend(prototypePocket, extendUpdate);
+
     Pocket.prototype = prototypePocket;
     // gbl.Pocket = Pocket;
 

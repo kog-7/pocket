@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="index.css"> </head>
+
+<body>
+    <script type="text/javascript" src="../../jslib/jquery.min.js">
+    </script>
+    <script src="../../dest/pocket.js"></script>
+    <div id="cont"></div>
+    <script type="text/javascript">
+        var pok = new Pocket("#cont", "templates/tmp.html");
+        pok.setCallback(function(){
+          console.log(123)
+        });
+        pok.beforeMount({
+            art: function() {
+                var btn = this.btn;
+                btn.bind("begin", "loading.run"), btn.bind("process", "position.run");
+                btn.bind("complete", "loading.stop"), btn.bind("complete", "position.stop");
+            },
+            btn: function(dm) {
+                var ts = this;
+                dm.on("click", function() {
+                    ts.btn.sync().updateState("begin", function(cb, run, lastValue, store) {
+                          console.log(store)
+                        var txt = store[0].value;
+                        var val = {
+                            value: txt,
+                            ctr: 0
+                        };
+                        run(val);
+                        setTimeout(function() {
+                            cb(val)
+                        }, 800);
+                    }).updateState("process", function(cb, run, lastValue) {
+                        run(1);
+                        setTimeout(function() {
+                            cb(lastValue);
+                        }, 3500);
+                    }).updateState("complete", function(cb, run, lastValue) {
+                      lastValue.value="完成";
+                        run(lastValue);
+                    })
+                });
+            }
+        });
+        pok.afterMount({});
+        pok.update({
+            btn: {
+                begin: function(opt, cb) {
+                    var current = opt.current,
+                        span = current.find("span");
+                    span.text(opt.value.value), current.css("background", "red");
+                    setTimeout(function() {
+                        span.css("opacity", 0);
+                        cb(opt.value);
+                    }, 500);
+                },
+                process: function(opt, cb) {
+                    var current = opt.current;
+                    current.css("WebkitTransform", "scale(1,0.2)");
+                    setTimeout(function() {
+                        cb(1);
+                    }, 1000);
+                },
+                complete: function(opt, cb) {
+                    var current = opt.current,
+                        span = current.find("span");
+                    current.css("WebkitTransform", "scale(1,1)");
+                    current.css("background", "green"), span.css("opacity", 1).html(opt.value.value), cb(opt.value);
+                }
+            },
+            position: {
+                run: function(opt) {
+                    var current = opt.current,
+                        val = opt.value;
+                    current.css({
+                        "WebkitTransform": "scale(1," + val + ")",
+                        opacity: 1
+                    });
+                },
+                stop: function(opt) {
+                    var current = opt.current
+                    current.css({
+                        "WebkitTransform": "scale(1,0)",
+                        "opacity": 0
+                    });
+                }
+            },
+            loading: {
+                run: function(opt, cb) {
+                    var span = opt.current.find("span"),
+                        trigger = opt.trigger;
+                        span.css("opacity",1);
+                    var one = function(dm) {
+                        dm.css("WebkitTransform", "scale(2,2)")
+                    }; //例子不适配
+                    var two = function(dm) {
+                        dm.css("WebkitTransform", "scale(1,1)")
+                    };
+                    var reverse = 0;
+                    var value = opt.value;
+                    var f = function() {
+                        if (value.ctr === 1) {
+                          span.css("opacity",0);
+                            return;
+                        }
+                        var fun = reverse % 2 === 0 ? one : two;
+                        reverse += 1;
+                        fun(span.eq(0))
+                        setTimeout(function() {
+                            fun(span.eq(1));
+                        }, 400);
+                        setTimeout(function() {
+                            fun(span.eq(2));
+                        }, 800);
+                        setTimeout(f, 1000);
+                    }
+                    f();
+                },
+                stop: function(opt) {opt.value.ctr=1;
+                  setTimeout(function () {
+                      opt.current.find(".dis").css("opacity",1);
+                  }, 500);
+                  
+                }
+            }
+        });
+        pok.useData(function(cb) {
+            setTimeout(function() {
+                cb({
+                    x: 1,
+                    y: 2
+                });
+            }, 1000)
+        }).render();
+    </script>
+</body>
+
+</html>

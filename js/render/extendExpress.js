@@ -51,51 +51,44 @@ var compIf = function(vara, expre, varb) { //条件对比
 
 
 
+
 var parseVariable = function(str) {
     var  vary, filter;
     var divide = "|";
     var potDivide = ":";
     var ind = str.indexOf(divide);
-    var lg = str.length;
+    // var lg = str.length;
     var potInd;
     var filterArr = null;
-    var alias,aliasInd;
+    var ifsave=false;
+    // var status=null;
     if (ind !== -1) {//操作过滤器
-      
         vary = str.slice(0, ind);
         filter = str.slice(ind + 1);
-        aliasInd=filter.indexOf("\@");
-        if(aliasInd!==-1){
-          alias=filter.slice(aliasInd+1);
-          filter=filter.slice(0,aliasInd);
+        if(filter&&filter.substr(-1,1)==="\&"){
+          ifsave=true;
+          filter=filter.slice(0,-1);
         }
         if (filter) {
             filterArr = filter.split(",")
         }
-    } else {
-        aliasInd=str.indexOf("\@");
-      if(aliasInd!==-1){
-        alias=str.slice(aliasInd+1);
-        str=str.slice(0,aliasInd);
+    } 
+    else {
+      if(str.substr(-1,1)==="\&"){
+        ifsave=true;
+        str=str.slice(0,-1);
       }
         vary = str
     }
-    var firstAttr=vary.split(",")[0].split(":")[0];
-    // vary=vary.split(",");//通过，表示多个变量
-    
-    // potInd = vary.indexOf(potDivide);
-    // if (potInd !== -1) {
-    //     def = vary.slice(potInd + 1);
-    //     vary = vary.slice(0, potInd)
-    // } else {
-    //     def = ""
-    // }
-    return {
-        filter: filterArr,
-        variable: vary,
-        firstAttr:firstAttr,
-        alias:alias
-    }
+    var firstAttr;
+      firstAttr=vary.split(",")[0].split(":")[0];
+      return {
+          filter: filterArr,
+          variable: vary,
+          firstAttr:firstAttr,
+          save:ifsave
+      }
+  
 };
 
 
@@ -132,9 +125,11 @@ var parseS = function(str, match) {
 };
 
 
+
 var extendExpress={
   handExpress: function(str, ob, item, blg) {//处理变量和值，也包括express表达式等
       var ts = this;
+      var tsId=ts.id;
       var varyOb = parseVariable(str);//先提取出相关内容做是什么内容的判断
       var match = ts.match;
       if (!item) {
@@ -210,7 +205,6 @@ var extendExpress={
             if(scopeVal[0]===match){//如果第一个是变量，要去掉匹配
               scopeVal=scopeVal.slice(1,-1);
               var scopeVaryOb = parseVariable(scopeVal);
-              
               tmpob = ts.getMatchValue(scopeVaryOb, ob, item, blg);
               if (!tmpob) {
                   tmpob = ""
@@ -239,14 +233,14 @@ var extendExpress={
           var kw=ts.keyword;
           if(!(ref in refOb)){
             soleItem=ts.sn.item+=1;
-            refOb[ref]=soleItem;//埋入id
+            refOb[ref]=ref+"-"+tsId+"-"+soleItem;//埋入id,最后一个数字为唯一的id
           }
           return 'data-xjref="' + ref+'"';
       } 
       else {//单变量解析
           tmpob = ts.getMatchValue(varyOb, ob, item, blg);
           if(typeof tmpob==="object"){tmpob=tmpob.toString();}
-          var parOb={value:tmpob,attr:varyOb.firstAttr,alias:varyOb.alias};
+          var parOb={value:tmpob,attr:varyOb.firstAttr,save:varyOb.save};
           parOb[ts.keySign]=true;
           return parOb;
           // return tmpob
