@@ -55,6 +55,9 @@ Pocket 是方便处理连串异步过程的javascript视图层框架
 
 > min.js链接地址 http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocket.min.js
 
+>npm地址 https://www.npmjs.com/package/pocketjs-inbrowser
+
+
 ##例子
 ###### 模版：templates/tmp.html ... templates/sub.html 
 ```html

@@ -1,0 +1,24 @@
+{
+    "name": "pocketjs-inbrowser",
+    "version": "1.1.1",
+    "description": "方便处理连串异步状态更新的javascript视图层框架",
+    "main": "index.js",
+    "dependencies": {},
+    "devDependencies": {},
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/kog-7/pocket.git"
+    },
+    "keywords": [
+        "js mini view Framework",
+        "js view",
+        "js 小型视图框架"
+    ],
+    "author": {
+        "name": "kog-7"
+    },
+    "license": "MIT"
+}
