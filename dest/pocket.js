@@ -2230,6 +2230,8 @@ var extendDom = {
         // delete updateOb.loadTast;
 
         updateOb.loaded = true;
+        
+        delete ts.updateOb;
 //只是临时生成，然后就会消失，不用delete
         // delete ts.storeExp;
         // delete ts.refOb;
