@@ -54,7 +54,7 @@ var extendRender = {
         setTimeout(function () {
             var lazyData = newTs.lazyData;
             newTs._cbData = false;
-            newTs.lazyData
+            // newTs.lazyData
             fun(newTs._sendData(lazyData));
             delete newTs.lazyData;
             delete newTs._cbData;

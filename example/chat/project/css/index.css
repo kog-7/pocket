@@ -1,0 +1,144 @@
+
+@font-face{
+font-family: 'Glyphicons Halflings';
+  src:url('../font/glyphicons-halflings-regular.eot');
+  /*下面的链接  为 某些图表必须用的*/
+    src: url('../font/glyphicons-halflings-regular.eot?#iefix') format('embedded-opentype'), url('../font/glyphicons-halflings-regular.woff2') format('woff2'), url('../font/glyphicons-halflings-regular.woff') format('woff'), url('../font/glyphicons-halflings-regular.ttf') format('truetype'), url('../font/glyphicons-halflings-regular.svg#glyphicons_halflingsregular') format('svg');
+}
+
+
+.base-font {
+    font-family: 'Glyphicons Halflings';
+    font-weight: normal;
+    /*line-height: 1;*/
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /*font-size:0.9em;*/
+    font-weight: lighter;
+}
+
+.font-img:before {
+    content:"\e060";
+}
+
+.chat {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px 15px;
+    height: 560px;
+    width: 390px;
+}
+
+.talk {
+    background: rgb(200, 200, 200);
+    height: 40%;
+    width: 100%;
+    position: relative;
+}
+
+.bars {
+    height: 35px;
+    line-height: 35px;
+    border-bottom: 1px solid grey;
+    position:relative;
+}
+
+
+
+.bars-face {
+    padding-left: 10px;
+    cursor: pointer;
+    color:rgb(70,60,50);
+}
+
+.talk-content {
+    position: absolute;
+    top: 40px;
+    bottom: 45px;
+    width: 96%;
+    padding: 5px 2%;
+    overflow: auto;
+}
+
+.talk-send {
+    position: absolute;
+    bottom: 0px;
+    height: 45px;
+    /*line-height:45px;*/
+    width: 100%;
+}
+
+.talk-send-btn {
+    float: right;
+    margin-right: 10px;
+    background: rgb(60, 50, 50);
+    color: white;
+    padding: 5px;
+    margin-top: 9px;
+    cursor: pointer;
+}
+
+.face {
+    position: absolute;
+    /*background: green;*/
+    padding: 5px 10px;
+    top: -35px;
+    /*bottom:100%;*/
+    left: 0px;
+    opacity:0;
+    transition:opacity 0.5s;
+    -webkit-transition:opacity 0.5s;
+}
+#article .face-active{
+  opacity:1;
+}
+
+
+.face-item {
+    cursor: pointer;
+    margin-left: 3px;
+}
+
+.display {
+    height: 60%;
+    /*background:red;*/
+    width: 100%;
+}
+
+.display-content {
+    padding: 10px;
+    margin-bottom:10px;
+}
+
+.display-item {
+    width: 100%;
+}
+
+.display-head {
+    width: 35px;
+    height: 35px;
+    display: inline-block;
+    background: red;
+    float: left;
+}
+
+.display-content {
+    /*display:inline-block;*/
+    padding: 10px 15px;
+    border: 1px solid grey;
+    position: relative;
+    margin-left: 45px;
+}
+
+.display-content:before {
+    content: "";
+    border-color: transparent #111;
+    border-style: solid;
+    border-width: 0.4em 0.4em 0.45em 0;
+    display: block;
+    height: 0;
+    width: 0;
+    right: 100%;
+    top: 0px;
+    position: absolute;
+}

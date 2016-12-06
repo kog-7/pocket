@@ -1,0 +1,59 @@
+<style>
+    /*用less还是最好，只是演示*/
+    
+    .talk {
+        background: rgb(200, 200, 200);
+        height: 30%;
+        width: 100%;
+        position: relative;
+    }
+    
+    .bars {
+        height: 35px;
+        line-height: 35px;
+        border-bottom: 1px solid grey;
+    }
+    
+    .bars-face {
+        padding-left: 10px;
+        cursor: pointer;
+    }
+    
+    .talk-content {
+        position: absolute;
+        top: 40px;
+        bottom: 45px;
+        width: 96%;
+        padding: 5px 2%;
+        overflow: auto;
+    }
+    
+    .talk-send {
+        position: absolute;
+        bottom: 0px;
+        height: 45px;
+        /*line-height:45px;*/
+        width: 100%;
+    }
+    
+    .talk-send-btn {
+        float: right;
+        margin-right: 10px;
+        background: rgb(60, 50, 50);
+        color: white;
+        padding: 5px;
+        margin-top: 9px;
+        cursor: pointer;
+    }
+</style>
+
+
+<div class="talk">
+    <div class="bars">
+       <span class="bars-face">b</span>
+    </div>
+    <div class="talk-content" contentEditable=true> 
+    </div>
+    <div class="talk-send"> 
+      <span class="talk-send-btn">send</span> </div>
+</div>

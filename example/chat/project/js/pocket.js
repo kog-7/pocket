@@ -2281,7 +2281,6 @@ var extendDom = {
 
     Pocket.prototype = prototypePocket;
     // gbl.Pocket = Pocket;
-
     if ( typeof define === "function" && define.amd ) {
     	define( "pocket", [], function() {
     		return Pocket;

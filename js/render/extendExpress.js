@@ -239,7 +239,8 @@ var extendExpress={
       } 
       else {//单变量解析
           tmpob = ts.getMatchValue(varyOb, ob, item, blg);
-          if(typeof tmpob==="object"){tmpob=tmpob.toString();}
+          // if(typeof tmpob==="object"){tmpob=tmpob.toString();}
+          
           var parOb={value:tmpob,attr:varyOb.firstAttr,save:varyOb.save};
           parOb[ts.keySign]=true;
           return parOb;

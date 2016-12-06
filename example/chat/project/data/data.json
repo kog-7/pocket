@@ -1,0 +1,15 @@
+{
+    "face": [{
+        "src": "img/face/a.png"
+    }, {
+        "src": "img/face/b.png"
+    }, {
+        "src": "img/face/c.png"
+    }, {
+        "src": "img/face/d.png"
+    }, {
+        "src": "img/face/e.png"
+    }, {
+        "src": "img/face/f.png"
+    }]
+}

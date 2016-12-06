@@ -5,12 +5,16 @@ Pocket 是方便处理连串异步过程的javascript视图层框架
 
 ![](http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocketjs.gif)
 
+> pocketjs 的想法，把操作数据和操作视图分成两种类型，操作数据为更新状态，操作视图为回调状态。而在回调状态的操作视图当中，不同的视图的回调还可以绑定。比如，现在要更新一个采购清单，首先更新状态A(请求需要采购的数据)-回调状态A(相关采购的页面模块会更新成新的数据)-同步回调状态AX(所有采购人员的页面模块上的采购列表会更新)-更新状态B(将采购数据ajax发送给供应商页面)-回调状态B(相关供应商的页面模块会根据新的采购信息更新)-同步回调状态AY(采购人员的页面模块会收到供应商的数据反馈后，更新供应商回馈信息)
+
 
 * <font size=2>pocket用于中小项目，或者是项目中的某些异步打包过程比较多的小模块。</font>
 * <font size=2>pocket使用起来非常简单，核心api只有6个，能够很方便的处理连串的异步执行和异步收集执行。</font>
 * <font size=2>使用文件模式创建模版和子模版，附加模版处理语法</font>
 * <font size=2>由于源码里面用到了jquery的ajax和dom处理，使用之前要加载jquery</font>
 * <font size=2>体积小，压缩后只有18.5k
+* 周边插件，gulp-pocketjs 把模板文件打包成script type="text/html",减少ajax请求，https://github.com/kog-7/gulp-pocketjs
+* 周边插件，使用pocketjs-data数据格式来定义状态数据结构。（融合过程还在开发过程中）。https://github.com/kog-7/pocketjs-data
 
 #### 核心流程
 ![](http://pocketjs.oss-cn-hongkong.aliyuncs.com/pocket.png)
@@ -20,7 +24,7 @@ Pocket 是方便处理连串异步过程的javascript视图层框架
 #### 为什么使用
 平常的工作内容或者个人作业，除了大项目，还有很多偏小型的项目，比如h5页面，一些逻辑和结构偏小的web页面，或者是引入某些第三方模块这些。如果都用webpack和react这些大东西可能有些麻烦。使用pocket非常简单，提供一个视图的基本操作流程和异步或同步下的状态更新+状态回调，基于html文件的模版学习容易也方便转换。
 
-#### 内容描述 
+#### 一个描述例子 
 <font size=2>假如有个场景，界面由两个内容组成，一个是请求信息按钮，一个是即将由数据组成其内容的div。  
 现在的需求是，点击按钮，div上面出现等待动画，按钮形状变成一个进度条，同时请求ajax并且进度条开始走动，在ajax请求完成的时候，div的内容被渲染出来，div的加载动画消失，按钮从进度条样式恢复成按钮样式</font>  
 
@@ -58,7 +62,7 @@ Pocket 是方便处理连串异步过程的javascript视图层框架
 >npm地址 https://www.npmjs.com/package/pocketjs-inbrowser
 
 
-##例子
+## 代码例子
 ###### 模版：templates/tmp.html ... templates/sub.html 
 ```html
 //tmp.html 

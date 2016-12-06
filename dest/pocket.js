@@ -1230,7 +1230,7 @@ var extendRender = {
         setTimeout(function () {
             var lazyData = newTs.lazyData;
             newTs._cbData = false;
-            newTs.lazyData
+            // newTs.lazyData
             fun(newTs._sendData(lazyData));
             delete newTs.lazyData;
             delete newTs._cbData;
@@ -1637,7 +1637,8 @@ var extendExpress={
       } 
       else {//单变量解析
           tmpob = ts.getMatchValue(varyOb, ob, item, blg);
-          if(typeof tmpob==="object"){tmpob=tmpob.toString();}
+          // if(typeof tmpob==="object"){tmpob=tmpob.toString();}
+          
           var parOb={value:tmpob,attr:varyOb.firstAttr,save:varyOb.save};
           parOb[ts.keySign]=true;
           return parOb;
