@@ -2,7 +2,7 @@
  * @Author: jxj
  * @Date:   2016-10-10 15:05:41
  * @Last Modified by:   jxj
- * @Last Modified time: 2016-11-10 13:37:16
+ * @Last Modified time: 2016-12-16 00:26:44
  */
 
 (function (gbl) {
@@ -342,7 +342,6 @@ var hasData=function(val){//项目逻辑里，是否有值
     
     var keyword="pocket_record_id";
 
-
 var matchReg=function(match){
     return new RegExp("\\" + match + "([\\w\\.\\-\\:\\|\\,\\#\\s\\&\\u4e00-\\u9fa5]+)\\" + match, "gm");
 };
@@ -360,10 +359,11 @@ var UserException=function(message) {
       if(typeof url==="string"){this.url=url;}
       this._init();
     };
+
     var prototypePocket = {
-        constructor: Pocket
+        constructor: Pocket,
+        sn:{id:0}
     };
-    
     
     var extendInit={
   _init:function(){
@@ -371,39 +371,6 @@ var UserException=function(message) {
   }
 }
     miniExtend(prototypePocket, extendInit);
-    
-    var filters = {
-    upper: function(str) {
-        return str.toUpperCase()
-    },
-    lower: function(str) {
-        return str.toLowerCase()
-    },
-    length: function(str) {
-        if (typeHim(str) !== "array") {
-            return str
-        }
-        return str.length
-    },
-    safe: function(str) {
-        if (typeof str === "string") {
-            return safeHtml(str)
-        }
-    },
-    toString:function(str){
-      return str.toString();
-    }
-};
-
-
-var extendFilter={//filters是给所有模版通用的，
-    filters:filters
-};
-
-Pocket.setFilter=function(opt){
-  coverExtend(filters, opt);
-}
-    miniExtend(prototypePocket, extendFilter);
 
     var path=(function(){
   
@@ -663,6 +630,676 @@ var anaInclude = function(opt) {
     };
     f(htmlArr, oriOb)
 }
+var Render=function(){
+this.storeExp = {};
+this.storeExpItem = 0;
+this.signItem = 0;
+//外出接口
+this.signStore = {};
+this.refOb = {};
+};
+var renderPrototype={
+    constructor:Render,
+    sn:{id:0}
+};
+
+
+
+var filters = {
+    upper: function(str) {
+        return str.toUpperCase()
+    },
+    lower: function(str) {
+        return str.toLowerCase()
+    },
+    length: function(str) {
+        if (typeHim(str) !== "array") {
+            return str
+        }
+        return str.length
+    },
+    safe: function(str) {
+        if (typeof str === "string") {
+            return safeHtml(str)
+        }
+    },
+    toString:function(str){
+      return str.toString();
+    }
+};
+
+
+var extendFilter={//filters是给所有模版通用的，
+    filters:filters
+};
+
+Pocket.setFilter=function(opt){
+  coverExtend(filters, opt);
+}
+
+miniExtend(renderPrototype,extendFilter);
+
+var extendMatch={
+  match: "?",
+  regMatch: function() {
+      var lf = this.match;
+      return matchReg(lf);
+  },
+  getMatchValue:function(varyOb, ob, item, blg) {//处理变量
+       var ts = this;
+       var varyAttr = varyOb.variable,
+          //  varyDef = varyOb.default,
+           varyFilter = varyOb.filter; 
+       var tmpob;
+       var tmpArr=[];
+       var fun = null;
+       var flsFun = ts.filters;
+       var ifArr=varyAttr.indexOf(",");
+       if(ifArr!==-1){//是否有,表示多变量
+           varyAttr=varyAttr.split(",");  
+       }
+       else{
+         varyAttr=[varyAttr];
+       }
+      //  var hasData=false;//判断是否有数据被变量化出来
+      var defInd,defVal;
+         varyAttr.forEach(function(attr,ind){
+           defVal="";
+           defInd=attr.indexOf(":");
+           if(defInd!==-1){//有默认值的情况
+             defVal=attr.slice(defInd+1);
+             attr=attr.slice(defInd);
+           }
+           var out=getValue(attr,ob,item,blg);
+           if(out===false){//如果为假则为“”
+             out=defVal;
+           }
+           tmpArr.push(out);
+         });
+         
+         
+         if(ifArr===-1){
+           tmpArr=tmpArr[0];
+         }
+       if (varyFilter) {
+         tmpob=tmpArr;
+        
+           varyFilter.forEach(function(fil) {
+               fun = flsFun[fil];
+               if (typeof fun === "function") {//如果为function的时候,带入进去运行
+                   tmpob = fun.apply(null,[tmpob,item,blg]);
+               }
+           });
+           if (!tmpob && tmpob !== 0) {//如果返回为空，则为过滤无效，返回空
+               tmpob = ""
+           }
+       }
+       else{
+            tmpob=tmpArr;
+       }
+       return tmpob;
+   }
+};
+
+miniExtend(renderPrototype,extendMatch);
+
+
+var compIf = function(vara, expre, varb) { //条件对比
+    var tf = null;
+    if (vara === true || vara === "true") {
+        vara = "true";
+    }
+    if (vara === false || vara === "false") {
+        vara = "false";
+    }
+    if (varb === true || varb === "true") {
+        varb = "true";
+    }
+    if (varb === false || varb === "false") {
+        varb = "false";
+    }
+    if (expre === "==" || expre === "=") {
+        expre = "=";
+    }
+    if(expre==="!="||expre==="!=="){
+        expre="!"; 
+    }
+    
+    if (!(isNaN(+vara))) {
+        vara = +vara;
+    }
+    if (!(isNaN(+varb))) {
+        varb = +varb;
+    }
+
+    switch (expre) {
+        case "<":
+            tf = (vara < varb);
+            break;
+        case ">":
+            tf = (vara > varb);
+            break;
+        case ">=":
+            tf = (vara >= varb);
+            break;
+        case "<=":
+            tf = (vara <= varb);
+            break;
+        case "=":
+            tf = (vara === varb);
+            break;
+        case "!":
+            tf = (vara !== varb);
+            break;
+    }
+    return tf;
+}
+
+
+
+//处理相关变量字符串，比如data:xxx|filter，把相关内容取出来。
+var parseVariable = function(str) {
+    var  vary, filter;
+    var divide = "|";
+    var potDivide = ":";
+    var ind = str.indexOf(divide);
+    // var lg = str.length;
+    var potInd;
+    var filterArr = null;
+    var ifsave=false;
+    // var status=null;
+    if (ind !== -1) {//操作过滤器
+        vary = str.slice(0, ind);
+        filter = str.slice(ind + 1);
+        if(filter&&filter.substr(-1,1)==="\&"){
+          ifsave=true;
+          filter=filter.slice(0,-1);
+        }
+        if (filter) {
+            filterArr = filter.split(",")
+        }
+    } 
+    else {
+      if(str.substr(-1,1)==="\&"){
+        ifsave=true;
+        str=str.slice(0,-1);
+      }
+        vary = str
+    }
+    var firstAttr;
+      firstAttr=vary.split(",")[0].split(":")[0];
+      return {
+          filter: filterArr,
+          variable: vary,
+          firstAttr:firstAttr,
+          save:ifsave
+      }
+  
+};
+
+
+
+//对环境标签中{{ }}是for还是if进行具体处理
+var parseS = function(str, match) {
+  //如下的判断后面要改一下下
+    var blankInd=str.indexOf(" ");
+    // console.warn(blankInd)
+    var tp=str;
+    if(blankInd!==-1){
+      tp = str.slice(0,blankInd);
+    }
+
+    var obs = null;
+    var reg = null;
+    var mat;
+    if (tp === "for") {
+        reg = new RegExp("for\\s+([\\w|\\|\\-]+)\\s+in\\s+(\\" + match + '?[\\{\\}\\w|\\|\\.\\[\\]\\,\\"\\:]+' + "\\" + match + "?)\\s*");
+        mat = reg.exec(str);
+        obs = [mat[1], mat[2]];
+        obs.type="for";
+    } else if (tp === "if") {
+        reg = new RegExp("if\\s+(\\" + match + "?[\\w|\\|\\.\\-]+\\" + match + "?)\\s+([\\<\\>\\=\\!]+[\\<\\>\\=\\!]*)\\s+(\\" + match + "?[\\w\\|\\.\\-]+\\" + match + "?)");
+        mat = reg.exec(str);
+        obs = [mat[1], mat[2], mat[3]];
+        obs.type="if";
+    } else if (tp === "template") {
+        reg = /template\s*([\w\-]*)/;
+        mat = reg.exec(str);
+        obs = [mat[1]];
+        obs.type="template";//由于copy和scope的长度都为1
+    }
+    else if(tp==="scope"){
+      reg=new RegExp("scope\\s+([\\w|\\|\\-]+)\\s+as\\s+(\\" + match + '?[\\{\\}\\w|\\|\\.\\[\\]\\,\\"\\:]+' + "\\" + match + "?)\\s*");
+     mat=reg.exec(str);
+     obs=[mat[1], mat[2]];
+     obs.type="scope";
+    }
+
+    return obs
+};
+
+
+
+
+
+var extendExpress={
+  handExpress: function(str, ob, item, blg) {//处理变量和值，也包括express表达式等
+      var ts = this;
+      // var tsId=ts.id;
+      var varyOb = parseVariable(str);//先提取出相关内容做是什么内容的判断
+      var match = ts.match;
+      if (!item) {
+          item = 0
+      }
+      if (!blg) {
+          blg = 1
+      }
+      var filter = varyOb.filter,attr = varyOb.variable;
+     //  var iref = null;
+      var storeExp = ts.storeExp;
+      var refOb = ts.refOb;
+      var matchVal = null;
+      var tmpob;
+      if (filter && filter[0] === "EXPRESS") {
+        //获得相关express
+          var res = storeExp[attr];
+          var expob = parseS(res.express, match);
+
+          if (expob.type === "for") {
+              var forVal = expob[1],forNameVal=expob[0];
+              if(forVal[0]===match){//如果第一个是变量，要去掉匹配
+                forVal=forVal.slice(1,-1);
+                var forVaryOb = parseVariable(forVal);
+                //解析for xx in yy的yy
+                tmpob = ts.getMatchValue(forVaryOb, ob, item, blg);
+                if (!tmpob) {
+                    tmpob = ""
+                }
+              }
+              else{//查看是否为对象
+                try {//尝试转换是否为对象。
+                    tmpob = JSON.parse(forVal)
+                } catch (e) {//如果不是对象就用
+                  tmpob="";
+                }
+              }
+              
+              if (typeof tmpob !== "object") {
+                  return ""
+              } else {
+                  return {
+                      data: tmpob,
+                      template: res.html,
+                      prefix: forNameVal,
+                      lastData: ob
+                  }
+              }
+          } else if (expob.type === "if") {
+              var vary1 = expob[0],
+                  vary2 = expob[2];
+              var match1 = ts.regMatch().exec(vary1);
+              var match2 = ts.regMatch().exec(vary2);
+              if (match1) {
+                  vary1 = match1[1];
+                  vary1 = ts.getMatchValue(parseVariable(vary1), ob, item, blg)
+              }
+              if (match2) {
+                  vary2 = match2[1];
+                  vary2 = ts.getMatchValue(parseVariable(vary2), ob, item, blg)
+              }
+              var tf = compIf(vary1, expob[1], vary2);
+              if (!tf) {
+                  return ""
+              } else {
+                  return {
+                      data: ob,
+                      template: res.html
+                  }
+              }
+          } 
+          else if(expob.type==="template"){//细小子模版的内容
+              var tmpInit=expob[0];
+              tmpInit=tmpInit==="init"?true:false;
+              return {
+                init:tmpInit,
+                type:"template",
+                data:ob,
+                template:res.html
+              };
+          }
+          else if(expob.type==="scope"){
+            var scopeVal = expob[1],scopeNameVal=expob[0];
+            if(scopeVal[0]===match){//如果第一个是变量，要去掉匹配
+              scopeVal=scopeVal.slice(1,-1);
+              var scopeVaryOb = parseVariable(scopeVal);
+              tmpob = ts.getMatchValue(scopeVaryOb, ob, item, blg);
+              if (!tmpob) {
+                  tmpob = ""
+              }
+            }
+            else{//查看是否为对象
+              try {//尝试转换是否为对象。
+                  tmpob = JSON.parse(scopeVal)
+              } catch (e) {//如果不是对象就用
+                tmpob="";
+              }
+            }
+            var outOb={};
+            outOb[scopeNameVal]=tmpob;
+                return {
+                    data: outOb,
+                    template: res.html,
+                    lastData: ob
+                }
+      } 
+
+          }
+      else if (attr.indexOf("REF") !== -1) {
+          ref = attr.slice(3);
+          ref = ref ? ref : "OTHER";
+          var soleItem="";
+          // var kw=ts.keyword;
+          //赋予唯一内容
+          if(!(ref in refOb)){
+            soleItem=ts.sn.id+=1;
+            refOb[ref]=ref+"-"+soleItem;//埋入id,最后一个数字为唯一的id
+          }
+          return 'data-xjref="' + ref+'"';
+      } 
+      else {//单变量解析
+          tmpob = ts.getMatchValue(varyOb, ob, item, blg);
+          // if(typeof tmpob==="object"){tmpob=tmpob.toString();}
+          
+          var parOb={value:tmpob,attr:varyOb.firstAttr,save:varyOb.save};
+          //变量要做随机标记
+          parOb[ts.keySign]=true;
+          return parOb;
+          // return tmpob
+      }
+  }
+};
+
+miniExtend(renderPrototype,extendExpress);
+
+//分析{{  }}环境标签
+var anaTag = function(htm, match) {
+  if(typeof htm!=="string"){return;}
+ var regold = new RegExp('\\{\\{(\\w+)\\s*(\\' + match + '|\\{\\"|\\}|[\\:\\"\\,\\w\\s\\>\\<\\=\\|\\.\\!\\[\\]])*\\}\\}');
+    var reg;
+    var mat = null;
+    var no = 0;
+    var lf = "",
+        rt = "";
+    var tp = null;
+    var right = "";
+    var out = [];
+    var temp = [];
+    tp = regold.exec(htm);
+    regold.lastIndex=0;
+    // try {
+    //     tp = regold.exec(htm);
+    // } catch (e) {
+    //     console.log("loop write error");
+    //     return;
+    // }
+    // var htmlArr = [];
+    var tempHtml = "";
+    do {
+        if (no === 0) {
+            if (!tp) {
+                return false
+            } else {
+                tp = tp[1]
+            }
+            reg = new RegExp("\\{\\{" + tp + '\\s*(\\' + match + '|\\{\\"|\\}|[\\:\\[\\]\\,\\"\\w\\s\\>\\<\\!\\=\\|\\.])*\\}\\}|(\\{\\{\\/' + tp + 's*\\}\\})', "g");
+            mat = reg.exec(htm);
+
+            lf = [mat.index, reg.lastIndex]
+        } else {
+            mat = reg.exec(htm);
+
+        }
+
+        if (mat[2]) {
+            no -= 1
+        } else {
+            no += 1
+        }
+
+        if (no === 0) {
+            rt = [mat.index, reg.lastIndex];
+            tempHtml = htm.slice(0, lf[0]);
+            temp = [{
+                html: tempHtml
+            }, {
+                html: htm.slice(lf[1], rt[0]),
+                express: htm.slice(lf[0] + 2, lf[1] - 2)
+            }];
+            htm = right = htm.slice(rt[1]);
+            //进一步的遍历
+            tp = regold.exec(right);
+            regold.lastIndex=0;
+            out = out.concat(temp)
+        }
+
+    } while (mat && tp);
+    out.push({
+        html: right
+    });
+    return out
+};
+
+
+var extendParse={
+  keySign:(function(){//只是作为当前运行的一个添加
+  var rd=(100*(Math.random())).toFixed(0);
+  return "pocket_var"+rd;
+})(),
+  _toSignString:function(attr,val,save){//save表示保存相关的变量值
+    if(save!==true){return val;}//不保存，原内容返回
+    var ts=this;
+    var keySign=ts.keySign;
+    var item=ts.signItem+=1;
+    item=item.toString();
+    ts.signStore[item]={attr:attr,value:val};
+    return "#"+keySign+item+keySign+"#";
+  },
+   stringEachArr: function(str, obs, item, blg) {//从render进入的入口
+       var ts = this;
+       var reg = ts.regMatch();//得到正则表达式
+       var match=null,matchStr="";
+       var outstr="",ind=0,lastInd=0;
+       var copyOutStr="";
+       var matchVal;
+       var middleStr="";
+       
+       while(match=reg.exec(str)){
+         matchStr=match[1];
+         ind=match.index;
+         middleStr=str.slice(lastInd,ind);
+         outstr+=middleStr;
+         copyOutStr+=middleStr;
+         matchVal=ts.handleStr(matchStr,obs,item,blg);
+         if(typeof matchVal!=="object"){
+           outstr+=matchVal;
+           copyOutStr+=matchVal;
+         }
+         else if("copyHtml" in matchVal){
+           outstr+=matchVal.html;
+           copyOutStr+=matchVal.copyHtml;
+         }
+         else{
+          //  console.log(matchVal)
+            outstr+=matchVal.value;
+            copyOutStr+=ts._toSignString(matchVal.attr,matchVal.value,matchVal.save);
+         }
+        //  outstr+=matchVal;
+         lastInd=reg.lastIndex;
+       }
+       middleStr=str.slice(lastInd);
+       outstr+=middleStr;
+       copyOutStr+=middleStr;
+      //  outstr+=str.slice(lastInd);
+       return {html:outstr,copyHtml:copyOutStr};
+   },
+   handleStr: function(str, obs, item, blg) {
+       var ts = this;
+       //变量赋值化字符串内容
+       var mat = ts.handExpress(str, obs, item, blg);
+       var keySign=ts.keySign;
+  
+       if (["number", "string"].indexOf(typeof mat) !== -1) {
+           return mat;
+       }
+        else if(mat[keySign]===true){
+          return mat;
+        }
+        else {
+           return ts.render(mat, "middle");
+       }
+   },
+   _changeToTemplate:function(htm){
+    var keySign=this.keySign;
+    return '<script class="'+keySign+'" type="text/html">'+htm+'<\/script>'; 
+   },
+   render: function(opt, mid) {
+       var strhtml = opt.template,
+           data = opt.data;
+       var prefix = opt.prefix;
+      //  var noMerge = opt.noMerge;
+       var ts = this;
+       var match = this.match;
+       var strarr = anaTag(strhtml, match);//分析{{}}关键字
+       var callback = opt.callback;
+       var lastData = opt.lastData;
+       var type=opt.type;
+
+       //针对临时模版的渲染
+       var init=opt.init;
+
+       var template = "";
+       var newItem;
+       var tempData = null;
+       var temp = null;
+
+       var outstr = "",copyOutStr="";
+      if(type==="template"){//如果是模版型号，初始存一个副本
+        outstr=copyOutStr=ts._changeToTemplate(strhtml);
+        if(init!==true){//如果不为true表示模版不需要初始化
+          return {html:outstr,copyHtml:copyOutStr};
+        }
+      }
+
+       //把html字符串再进行{{}}解析
+       if (typeHim(strarr) === "array") {
+           var i = 0,
+               n = strarr.length,
+               temp = null;
+           var tpob = {};
+           var item = 0;
+           var exp = "";
+           for (; i < n; i += 1) {
+               temp = strarr[i];
+               if (temp.express) {
+                   newItem =ts.storeExpItem += 1;
+                   exp = "XJ" + newItem;
+                   ts.storeExp[exp] = temp;
+                   template += match + exp + "|EXPRESS" + match
+               } else {
+                   template += temp.html
+               }
+           }
+       } else if (strarr === false) {
+           template = strhtml
+       }
+
+        var combineHtml=null;
+     var tp = typeHim(data);
+       temp = null;
+      var i = 0,n;
+
+       if (tp === "array" && mid === null) {//data的格式
+           i = 0, n = data.length;
+           for (; i < n; i += 1) {
+               temp = data[i];
+               if (typeof temp === "object") {
+                   temp.NUMBER = i.toString()
+               }
+               tempData = temp;
+               if (lastData) {
+                   tempData = createInherit(lastData, tempData)
+               }
+               //如果数据是数组，遍历执行
+               combineHtml=ts.stringEachArr(template, tempData, i, n);
+               outstr+=combineHtml.html;
+               copyOutStr+=combineHtml.copyHtml;
+              //  outstr += ts.stringEachArr(template, tempData, i, n)
+           }
+       } else if (tp === "array" && prefix) {//根据情况，先写一样的，
+           i = 0, n = data.length;
+  
+           for (; i < n; i += 1) {
+               temp = data[i];
+               if (typeof temp === "object") {
+                   temp.NUMBER = i.toString()
+               }
+               tempData = {};
+               tempData[prefix] = temp;
+               if (lastData) {
+                   tempData = createInherit(lastData, tempData)
+               }
+               //传入当前的别名进去
+               combineHtml=ts.stringEachArr(template, tempData, i, n);
+               outstr+=combineHtml.html;
+               copyOutStr+=combineHtml.copyHtml;
+              //  outstr += ts.stringEachArr(template, tempData, i, n)
+           }
+       } else if (tp === "object" && prefix) {
+           var attrStr = "";
+           for (attrStr in data) {
+               temp = data[attrStr];
+               temp = {
+                   value: temp,
+                   attr: attrStr
+               };
+               tempData = {};
+               tempData[prefix] = temp;
+               if (lastData) {
+                   tempData = createInherit(lastData, tempData)
+               }
+               combineHtml=ts.stringEachArr(template, tempData);
+               outstr+=combineHtml.html;
+               copyOutStr+=combineHtml.copyHtml;
+              //  outstr += ts.stringEachArr(template, tempData)
+           }
+       } else {
+           if (lastData) {
+               data = createInherit(lastData, data)
+           }
+           combineHtml=ts.stringEachArr(template, data, 0, 1);
+           outstr+=combineHtml.html;
+           copyOutStr+=combineHtml.copyHtml;
+       }
+
+      var returnOut={html:outstr,copyHtml:copyOutStr};
+
+      if(!mid){//表示为初始运行环境，才出去入口
+//data为初次原始的data
+      // ts._handleDom(returnOut);
+      if(typeof callback==="function"){
+        callback(returnOut,ts.refOb,ts.signStore,ts.keySign);
+      }
+    }
+
+
+       return returnOut;
+   }
+}
+
+miniExtend(renderPrototype,extendParse);
+
+
+Render.prototype=renderPrototype;
 var UpdateRun=(function(){
   var clear = function () {
     this._runFuns = [];
@@ -1031,6 +1668,9 @@ var _update=function(status,val_fun){
 }
 };
 
+
+
+
 var _syncUpdate=function(status,val_fun){
   if(typeof val_fun!=="function"){
     throw new UserException("异步队列下updateState第二个参数必须为函数");
@@ -1154,7 +1794,10 @@ return f;
 
 var Update=(function(){
 var classUpdate=function(){
+
+
 };
+
 
 classUpdate.prototype={
   init:function(updateObject,attrs,refOb,updateFuns){
@@ -1165,6 +1808,7 @@ classUpdate.prototype={
   },
   _decoration:function(refOb,updateObject,updateFuns){
     var factory=this;
+    //把相关的update内容和缓存的内容切割在重新利用
     forEachOb(refOb,function(ref,refId){
       var updateCallbacks=updateFuns[ref];
       var updateInfos=updateObject[ref];  
@@ -1223,9 +1867,7 @@ var extendRender = {
         if (!(typeof fun === "function")) {
             return ts;
         }
-        var f = function () {};
-        f.prototype = ts;
-        var newTs = new f();
+        var newTs = createInherit(ts);
         newTs._cbData = true;
         setTimeout(function () {
             var lazyData = newTs.lazyData;
@@ -1243,6 +1885,7 @@ var extendRender = {
             ts.lazyData = opt;
             return ts;
         }
+
         var aim,
             attrs,
             data,
@@ -1272,21 +1915,14 @@ var extendRender = {
         aim = aim
             ? aim
             : ts.aim;
+
         //参数处理结束
         if (!(newTs && ("render" in newTs))) {
-            var f = function () {};
-            f.prototype = ts;
-            newTs = new f();
+            newTs = createInherit(ts);
         }
-        newTs.storeExp = {};
-        newTs.storeExpItem = 0;
-        newTs.refOb = {};
-        newTs.insertType = insert; //表示插入模式
         newTs.aim = aim; //新的对象拥有自己的aim属性
-
-        newTs.signItem = 0;
-        newTs.signStore = {};
-        newTs._exps = null; //防止后此渲染而追加内容
+        // newTs.insertType = insert; //表示插入模式
+       
         if (jsonp === undefined) {
             jsonp = ts.jsonp;
         }
@@ -1297,20 +1933,28 @@ var extendRender = {
         if (url && url in templateCache) {
             strhtml = templateCache[url];
         }
+        
         var outData = {
             template: strhtml,
-            data: data
+            data: data,
+            callback:function(htmlObj,refOb,signStore,keySign){
+                newTs._handleDom(htmlObj,insert,refOb,signStore,keySign);
+            }
         };
+
+        var newRender=new Render();
         setTimeout(function () {
             if (strhtml) {
-                newTs._render(outData, null, "render");
+                // newTs._render(outData);
+                newRender.render(outData);
             } else {
                 anaInclude({
                     url: url,
                     callback: function (ob) {
                         var html = templateCache[url] = ob.html;
                         outData.template = html;
-                        newTs._render(outData, null, "render")
+                        newRender.render(outData);
+                        // newTs._render(outData)
                     },
                     jsonp: jsonp
                 })
@@ -1326,567 +1970,6 @@ var extendRender = {
 }
     miniExtend(prototypePocket, extendRender);
 
-    var extendMatch={
-  sn: {
-      item: 0,//作为所有的唯一的序列
-      id:0//作为每一个实例的id
-  },
-  keyword:keyword,
-  match: "?",
-  regMatch: function() {
-      var lf = this.match;
-      return matchReg(lf);
-  },
-  getMatchValue:function(varyOb, ob, item, blg) {//处理变量
-       var ts = this;
-       var varyAttr = varyOb.variable,
-          //  varyDef = varyOb.default,
-           varyFilter = varyOb.filter; 
-       var tmpob;
-       var tmpArr=[];
-       var fun = null;
-       var flsFun = ts.filters;
-       var ifArr=varyAttr.indexOf(",");
-       if(ifArr!==-1){//是否有,表示多变量
-           varyAttr=varyAttr.split(",");  
-       }
-       else{
-         varyAttr=[varyAttr];
-       }
-      //  var hasData=false;//判断是否有数据被变量化出来
-      var defInd,defVal;
-         varyAttr.forEach(function(attr,ind){
-           defVal="";
-           defInd=attr.indexOf(":");
-           if(defInd!==-1){//有默认值的情况
-             defVal=attr.slice(defInd+1);
-             attr=attr.slice(defInd);
-           }
-           var out=getValue(attr,ob,item,blg);
-           if(out===false){//如果为假则为“”
-             out=defVal;
-           }
-           tmpArr.push(out);
-         });
-         
-         
-         if(ifArr===-1){
-           tmpArr=tmpArr[0];
-         }
-       if (varyFilter) {
-         tmpob=tmpArr;
-        
-           varyFilter.forEach(function(fil) {
-               fun = flsFun[fil];
-               if (typeof fun === "function") {//如果为function的时候,带入进去运行
-                   tmpob = fun.apply(null,[tmpob,item,blg]);
-               }
-           });
-           if (!tmpob && tmpob !== 0) {//如果返回为空，则为过滤无效，返回空
-               tmpob = ""
-           }
-       }
-       else{
-            tmpob=tmpArr;
-       }
-
-       
-       return tmpob;
-   }
-};
-    miniExtend(prototypePocket, extendMatch);
-
-    var compIf = function(vara, expre, varb) { //条件对比
-    var tf = null;
-    if (vara === true || vara === "true") {
-        vara = "true";
-    }
-    if (vara === false || vara === "false") {
-        vara = "false";
-    }
-    if (varb === true || varb === "true") {
-        varb = "true";
-    }
-    if (varb === false || varb === "false") {
-        varb = "false";
-    }
-    if (expre === "==" || expre === "=") {
-        expre = "=";
-    }
-    if(expre==="!="||expre==="!=="){
-        expre="!"; 
-    }
-    
-    if (!(isNaN(+vara))) {
-        vara = +vara;
-    }
-    if (!(isNaN(+varb))) {
-        varb = +varb;
-    }
-
-    switch (expre) {
-        case "<":
-            tf = (vara < varb);
-            break;
-        case ">":
-            tf = (vara > varb);
-            break;
-        case ">=":
-            tf = (vara >= varb);
-            break;
-        case "<=":
-            tf = (vara <= varb);
-            break;
-        case "=":
-            tf = (vara === varb);
-            break;
-        case "!":
-            tf = (vara !== varb);
-            break;
-    }
-    return tf;
-}
-
-
-
-
-var parseVariable = function(str) {
-    var  vary, filter;
-    var divide = "|";
-    var potDivide = ":";
-    var ind = str.indexOf(divide);
-    // var lg = str.length;
-    var potInd;
-    var filterArr = null;
-    var ifsave=false;
-    // var status=null;
-    if (ind !== -1) {//操作过滤器
-        vary = str.slice(0, ind);
-        filter = str.slice(ind + 1);
-        if(filter&&filter.substr(-1,1)==="\&"){
-          ifsave=true;
-          filter=filter.slice(0,-1);
-        }
-        if (filter) {
-            filterArr = filter.split(",")
-        }
-    } 
-    else {
-      if(str.substr(-1,1)==="\&"){
-        ifsave=true;
-        str=str.slice(0,-1);
-      }
-        vary = str
-    }
-    var firstAttr;
-      firstAttr=vary.split(",")[0].split(":")[0];
-      return {
-          filter: filterArr,
-          variable: vary,
-          firstAttr:firstAttr,
-          save:ifsave
-      }
-  
-};
-
-
-
-//对环境标签中{{ }}是for还是if进行具体处理
-var parseS = function(str, match) {
-    var tp = str.slice(0, str.indexOf(" "));//根据空格位置，取得第一个标识符是if，for还是什么
-    var obs = null;
-    var reg = null;
-    var mat;
-    if (tp === "for") {
-        reg = new RegExp("for\\s+([\\w|\\|\\-]+)\\s+in\\s+(\\" + match + '?[\\{\\}\\w|\\|\\.\\[\\]\\,\\"\\:]+' + "\\" + match + "?)\\s*");
-        mat = reg.exec(str);
-        obs = [mat[1], mat[2]];
-        obs.type="for";
-    } else if (tp === "if") {
-        reg = new RegExp("if\\s+(\\" + match + "?[\\w|\\|\\.\\-]+\\" + match + "?)\\s+([\\<\\>\\=\\!]+[\\<\\>\\=\\!]*)\\s+(\\" + match + "?[\\w\\|\\.\\-]+\\" + match + "?)");
-        mat = reg.exec(str);
-        obs = [mat[1], mat[2], mat[3]];
-        obs.type="if";
-    } else if (tp === "copy") {
-        reg = /copy\s+([\w\-]+)/;
-        mat = reg.exec(str);
-        obs = [mat[1]];
-        obs.type="copy";//由于copy和scope的长度都为1
-    }
-    else if(tp==="scope"){
-      reg=new RegExp("scope\\s+([\\w|\\|\\-]+)\\s+as\\s+(\\" + match + '?[\\{\\}\\w|\\|\\.\\[\\]\\,\\"\\:]+' + "\\" + match + "?)\\s*");
-     mat=reg.exec(str);
-     obs=[mat[1], mat[2]];
-     obs.type="scope";
-    }
-    return obs
-};
-
-
-
-var extendExpress={
-  handExpress: function(str, ob, item, blg) {//处理变量和值，也包括express表达式等
-      var ts = this;
-      var tsId=ts.id;
-      var varyOb = parseVariable(str);//先提取出相关内容做是什么内容的判断
-      var match = ts.match;
-      if (!item) {
-          item = 0
-      }
-      if (!blg) {
-          blg = 1
-      }
-      var filter = varyOb.filter,attr = varyOb.variable;
-     //  var iref = null;
-      var storeExp = ts.storeExp;
-      var refOb = ts.refOb;
-      var matchVal = null;
-      var tmpob;
-      if (filter && filter[0] === "EXPRESS") {
-          var res = storeExp[attr];
-          var expob = parseS(res.express, match);
-          
-          if (expob.type === "for") {
-              var forVal = expob[1],forNameVal=expob[0];
-              if(forVal[0]===match){//如果第一个是变量，要去掉匹配
-                forVal=forVal.slice(1,-1);
-                var forVaryOb = parseVariable(forVal);
-                
-                tmpob = ts.getMatchValue(forVaryOb, ob, item, blg);
-                if (!tmpob) {
-                    tmpob = ""
-                }
-              }
-              else{//查看是否为对象
-                try {//尝试转换是否为对象。
-                    tmpob = JSON.parse(forVal)
-                } catch (e) {//如果不是对象就用
-                  tmpob="";
-                }
-              }
-              
-              if (typeof tmpob !== "object") {
-                  return ""
-              } else {
-                  return {
-                      data: tmpob,
-                      template: res.html,
-                      prefix: forNameVal,
-                      lastData: ob
-                  }
-              }
-          } else if (expob.type === "if") {
-              var vary1 = expob[0],
-                  vary2 = expob[2];
-              var match1 = ts.regMatch().exec(vary1);
-              var match2 = ts.regMatch().exec(vary2);
-              if (match1) {
-                  vary1 = match1[1];
-                  vary1 = ts.getMatchValue(parseVariable(vary1), ob, item, blg)
-              }
-              if (match2) {
-                  vary2 = match2[1];
-                  vary2 = ts.getMatchValue(parseVariable(vary2), ob, item, blg)
-              }
-              var tf = compIf(vary1, expob[1], vary2);
-              if (!tf) {
-                  return ""
-              } else {
-                  return {
-                      data: ob,
-                      template: res.html
-                  }
-              }
-          } 
-          else if(expob.type==="scope"){
-            var scopeVal = expob[1],scopeNameVal=expob[0];
-            if(scopeVal[0]===match){//如果第一个是变量，要去掉匹配
-              scopeVal=scopeVal.slice(1,-1);
-              var scopeVaryOb = parseVariable(scopeVal);
-              tmpob = ts.getMatchValue(scopeVaryOb, ob, item, blg);
-              if (!tmpob) {
-                  tmpob = ""
-              }
-            }
-            else{//查看是否为对象
-              try {//尝试转换是否为对象。
-                  tmpob = JSON.parse(scopeVal)
-              } catch (e) {//如果不是对象就用
-                tmpob="";
-              }
-            }
-            var outOb={};
-            outOb[scopeNameVal]=tmpob;
-                return {
-                    data: outOb,
-                    template: res.html,
-                    lastData: ob
-                }
-      } 
-          }
-      else if (attr.indexOf("REF") !== -1) {
-          ref = attr.slice(3);
-          ref = ref ? ref : "OTHER";
-          var soleItem="";
-          var kw=ts.keyword;
-          if(!(ref in refOb)){
-            soleItem=ts.sn.item+=1;
-            refOb[ref]=ref+"-"+tsId+"-"+soleItem;//埋入id,最后一个数字为唯一的id
-          }
-          return 'data-xjref="' + ref+'"';
-      } 
-      else {//单变量解析
-          tmpob = ts.getMatchValue(varyOb, ob, item, blg);
-          // if(typeof tmpob==="object"){tmpob=tmpob.toString();}
-          
-          var parOb={value:tmpob,attr:varyOb.firstAttr,save:varyOb.save};
-          parOb[ts.keySign]=true;
-          return parOb;
-          // return tmpob
-      }
-  }
-};
-    miniExtend(prototypePocket, extendExpress);
-
-    //分析{{  }}环境标签
-var anaTag = function(htm, match) {
- var regold = new RegExp('\\{\\{(\\w+)(?=\\s)(\\' + match + '|\\{\\"|\\}|[\\:\\"\\,\\w\\s\\>\\<\\=\\|\\.\\!\\[\\]])+\\}\\}');
-    var reg;
-    var mat = null;
-    var no = 0;
-    var lf = "",
-        rt = "";
-    var tp = null;
-    var right = "";
-    var out = [];
-    var temp = [];
-    tp = regold.exec(htm);
-    try {
-        tp = regold.exec(htm);
-    } catch (e) {
-        console.log("loop write error");
-        return;
-    }
-    var htmlArr = [];
-    var tempHtml = "";
-    do {
-        if (no === 0) {
-            if (!tp) {
-                return false
-            } else {
-                tp = tp[1]
-            }
-            reg = new RegExp("\\{\\{" + tp + '\\s+(\\' + match + '|\\{\\"|\\}|[\\:\\[\\]\\,\\"\\w\\s\\>\\<\\!\\=\\|\\.])+\\}\\}|(\\{\\{\\/' + tp + 's*\\}\\})', "g");
-            mat = reg.exec(htm);
-            lf = [mat.index, reg.lastIndex]
-        } else {
-            mat = reg.exec(htm)
-        }
-        if (mat[2]) {
-            no -= 1
-        } else {
-            no += 1
-        }
-        if (no === 0) {
-            rt = [mat.index, reg.lastIndex];
-            tempHtml = htm.slice(0, lf[0]);
-            temp = [{
-                html: tempHtml
-            }, {
-                html: htm.slice(lf[1], rt[0]),
-                express: htm.slice(lf[0] + 2, lf[1] - 2)
-            }];
-            htm = right = htm.slice(rt[1]);
-            tp = regold.exec(right);
-            out = out.concat(temp)
-        }
-
-    } while (mat && tp);
-    out.push({
-        html: right
-    });
-    return out
-};
-
-
-var extendParse={
-  keySign:(function(){
-  var rd=(100*(Math.random())).toFixed(0);
-  return "pocket_var"+rd;
-})(),
-  _toSignString:function(attr,val,save){//save表示保存相关的变量值
-    if(save!==true){return val;}//不保存，原内容返回
-    var ts=this;
-    var keySign=ts.keySign;
-    var item=ts.signItem+=1;
-    item=item.toString();
-    ts.signStore[item]={attr:attr,value:val};
-    return "#"+keySign+item+keySign+"#";
-  },
-   stringEachArr: function(str, obs, item, blg) {//从_render进入的入口
-       var ts = this;
-       var reg = ts.regMatch();//得到正则表达式
-       var match=null,matchStr="";
-       var outstr="",ind=0,lastInd=0;
-       var copyOutStr="";
-       var matchVal;
-       var middleStr="";
-       
-       while(match=reg.exec(str)){
-         matchStr=match[1];
-         ind=match.index;
-         middleStr=str.slice(lastInd,ind);
-         outstr+=middleStr;
-         copyOutStr+=middleStr;
-         matchVal=ts.handleStr(matchStr,obs,item,blg);
-         if(typeof matchVal!=="object"){
-           outstr+=matchVal;
-           copyOutStr+=matchVal;
-         }
-         else if("copyHtml" in matchVal){
-           outstr+=matchVal.html;
-           copyOutStr+=matchVal.copyHtml;
-         }
-         else{
-          //  console.log(matchVal)
-            outstr+=matchVal.value;
-            copyOutStr+=ts._toSignString(matchVal.attr,matchVal.value,matchVal.save);
-         }
-        //  outstr+=matchVal;
-         lastInd=reg.lastIndex;
-       }
-       middleStr=str.slice(lastInd);
-       outstr+=middleStr;
-       copyOutStr+=middleStr;
-      //  outstr+=str.slice(lastInd);
-       return {html:outstr,copyHtml:copyOutStr};
-   },
-   handleStr: function(str, obs, item, blg) {
-       var ts = this;
-       var mat = ts.handExpress(str, obs, item, blg);
-       var keySign=ts.keySign;
-  
-       if (["number", "string"].indexOf(typeof mat) !== -1) {
-           return mat;
-       }
-        else if(mat[keySign]===true){
-          return mat;
-        }
-        else {
-           return ts._render(mat, "middle");
-       }
-   },
-   _render: function(opt, mid) {
-       var strhtml = opt.template,
-           data = opt.data;
-       var prefix = opt.prefix;
-      //  var noMerge = opt.noMerge;
-       var ts = this;
-       var match = this.match;
-       var strarr = anaTag(strhtml, match);//分析{{}}关键字
-      //  var callback = opt.callback;
-       var lastData = opt.lastData;
-       var template = "";
-       var newItem;
-       var tempData = null;
-       var temp = null;
-       if (typeHim(strarr) === "array") {
-           var i = 0,
-               n = strarr.length,
-               temp = null;
-           var tpob = {};
-           var item = 0;
-           var exp = "";
-           for (; i < n; i += 1) {
-               temp = strarr[i];
-               if (temp.express) {
-                   newItem =ts.storeExpItem += 1;
-                   exp = "XJ" + newItem;
-                   ts.storeExp[exp] = temp;
-                   template += match + exp + "|EXPRESS" + match
-               } else {
-                   template += temp.html
-               }
-           }
-       } else if (strarr === false) {
-           template = strhtml
-       }
-        var combineHtml=null;
-       
-       var tp = typeHim(data);
-       temp = null;
-       var outstr = "",copyOutStr="";
-       var i = 0,
-           n;
-       if (tp === "array" && mid === null) {//data的格式
-           i = 0, n = data.length;
-           for (; i < n; i += 1) {
-               temp = data[i];
-               if (typeof temp === "object") {
-                   temp.NUMBER = i.toString()
-               }
-               tempData = temp;
-               if (lastData) {
-                   tempData = createInherit(lastData, tempData)
-               }
-               combineHtml=ts.stringEachArr(template, tempData, i, n);
-               outstr+=combineHtml.html;
-               copyOutStr+=combineHtml.copyHtml;
-              //  outstr += ts.stringEachArr(template, tempData, i, n)
-           }
-       } else if (tp === "array" && prefix) {//根据情况，先写一样的，
-           i = 0, n = data.length;
-           for (; i < n; i += 1) {
-               temp = data[i];
-               if (typeof temp === "object") {
-                   temp.NUMBER = i.toString()
-               }
-               tempData = {};
-               tempData[prefix] = temp;
-               if (lastData) {
-                   tempData = createInherit(lastData, tempData)
-               }
-               //传入当前的别名进去
-               combineHtml=ts.stringEachArr(template, tempData, i, n);
-               outstr+=combineHtml.html;
-               copyOutStr+=combineHtml.copyHtml;
-              //  outstr += ts.stringEachArr(template, tempData, i, n)
-           }
-       } else if (tp === "object" && prefix) {
-           var attrStr = "";
-           for (attrStr in data) {
-               temp = data[attrStr];
-               temp = {
-                   value: temp,
-                   attr: attrStr
-               };
-               tempData = {};
-               tempData[prefix] = temp;
-               if (lastData) {
-                   tempData = createInherit(lastData, tempData)
-               }
-               combineHtml=ts.stringEachArr(template, tempData);
-               outstr+=combineHtml.html;
-               copyOutStr+=combineHtml.copyHtml;
-              //  outstr += ts.stringEachArr(template, tempData)
-           }
-       } else {
-           if (lastData) {
-               data = createInherit(lastData, data)
-           }
-           combineHtml=ts.stringEachArr(template, data, 0, 1);
-           outstr=combineHtml.html;
-           copyOutStr=combineHtml.copyHtml;
-       }
-var returnOut={html:outstr,copyHtml:copyOutStr};
-      if(!mid){//表示为初始运行环境，才出去入口
-//data为初次原始的data
-      ts._handleDom(returnOut);
-    }
-       return returnOut;
-   }
-}
-    miniExtend(prototypePocket, extendParse);
 
     var runMountFun = function (amount, outDom, ts) {
     var afunAttr = null,
@@ -2155,11 +2238,16 @@ var tagAna = function (updateObject,ref, copyDom, signStore, sign, domId) {
 };
 
 var extendDom = {
-    _handleDom: function (htmlOb) {
+    keyword:keyword,
+    _handleDom: function (htmlOb,insertType,refOb,signStore,keySign) {
         var htmlStr = htmlOb.html;
         var htmlCopy = htmlOb.copyHtml;
         var ts = this;
-        var refOb = ts.refOb;
+        // 从render来
+        // var refOb = ts.refOb;
+        //         //拿到匹配的数据
+        // var signStore = ts.signStore,
+        //     keySign = ts.keySign; //keysign为# ..    ..#的标识符
         var dom = $(htmlStr);
         var root = $("<div></div>");
         root.append(dom);
@@ -2171,24 +2259,24 @@ var extendDom = {
         var bmount = ts._beforeMount,
             amount = ts._afterMount;
         var attrs = ts.attrs;
-        var updateOb = ts.updateOb; //得到最后返回的实例
+        //放出的接口
+        var updateOb = ts.updateOb; 
         var kw = ts.keyword;
         var outDom = {};
-        var aim = ts.aim,
-            insertType = ts.insertType;
+        var aim = ts.aim;
+            // insertType = ts.insertType;
         var copyRoot = $("<div></div>");
         copyRoot.append(copyDom);
-        //拿到匹配的数据
-        var signStore = ts.signStore,
-            keySign = ts.keySign; //keysign为# ..    ..#的标识符
+
         var updateObject = {};
-      
+
         for (ref in refOb) { //ref 代表名字
             if (refOb.hasOwnProperty(ref)) {
                 domId = refOb[ref];
                 // 这个地方做的是,每个dom的统一指向，后面是具体指向
                 nd = root.find('[data-xjref=' + ref + ']');
                 copyNd = copyRoot.find('[data-xjref=' + ref + ']');
+
                 //移除特质属性
                 if (nd[0].hasAttribute("pocket-data")) {
                     nd.removeAttr("pocket-data");
@@ -2207,7 +2295,7 @@ var extendDom = {
         }
         
         if(typeof ts.mountCallback==="function"){
-          ts.mountCallback.call(updateOb);
+          ts.mountCallback.call(updateOb);//把新生成的updateOb放进去作为相关的回调
         }
         
         if (bmount) {
@@ -2225,11 +2313,7 @@ var extendDom = {
             runMountFun(amount, outDom, updateOb);
         }
         
-    
-        
-
         // delete updateOb.loadTast;
-
         updateOb.loaded = true;
         
         delete ts.updateOb;
@@ -2280,7 +2364,6 @@ var extendDom = {
     miniExtend(prototypePocket, extendDomLife);
 
     Pocket.prototype = prototypePocket;
-    // gbl.Pocket = Pocket;
 
     if ( typeof define === "function" && define.amd ) {
     	define( "pocket", [], function() {

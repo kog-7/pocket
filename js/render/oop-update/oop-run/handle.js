@@ -78,6 +78,9 @@ var _update=function(status,val_fun){
 }
 };
 
+
+
+
 var _syncUpdate=function(status,val_fun){
   if(typeof val_fun!=="function"){
     throw new UserException("异步队列下updateState第二个参数必须为函数");

@@ -1,5 +1,6 @@
 '@include(utils/include.js)'
-'@include(classUpdate/classUpdate.js)'
+'@include(oop-render/oop.js)'
+'@include(oop-update/oop.js)'
 
 var extendRender = {
     setTemplate: function (url, jsonp) {
@@ -47,9 +48,7 @@ var extendRender = {
         if (!(typeof fun === "function")) {
             return ts;
         }
-        var f = function () {};
-        f.prototype = ts;
-        var newTs = new f();
+        var newTs = createInherit(ts);
         newTs._cbData = true;
         setTimeout(function () {
             var lazyData = newTs.lazyData;
@@ -67,6 +66,7 @@ var extendRender = {
             ts.lazyData = opt;
             return ts;
         }
+
         var aim,
             attrs,
             data,
@@ -96,21 +96,14 @@ var extendRender = {
         aim = aim
             ? aim
             : ts.aim;
+
         //参数处理结束
         if (!(newTs && ("render" in newTs))) {
-            var f = function () {};
-            f.prototype = ts;
-            newTs = new f();
+            newTs = createInherit(ts);
         }
-        newTs.storeExp = {};
-        newTs.storeExpItem = 0;
-        newTs.refOb = {};
-        newTs.insertType = insert; //表示插入模式
         newTs.aim = aim; //新的对象拥有自己的aim属性
-
-        newTs.signItem = 0;
-        newTs.signStore = {};
-        newTs._exps = null; //防止后此渲染而追加内容
+        // newTs.insertType = insert; //表示插入模式
+       
         if (jsonp === undefined) {
             jsonp = ts.jsonp;
         }
@@ -121,20 +114,28 @@ var extendRender = {
         if (url && url in templateCache) {
             strhtml = templateCache[url];
         }
+        
         var outData = {
             template: strhtml,
-            data: data
+            data: data,
+            callback:function(htmlObj,refOb,signStore,keySign){
+                newTs._handleDom(htmlObj,insert,refOb,signStore,keySign);
+            }
         };
+
+        var newRender=new Render();
         setTimeout(function () {
             if (strhtml) {
-                newTs._render(outData, null, "render");
+                // newTs._render(outData);
+                newRender.render(outData);
             } else {
                 anaInclude({
                     url: url,
                     callback: function (ob) {
                         var html = templateCache[url] = ob.html;
                         outData.template = html;
-                        newTs._render(outData, null, "render")
+                        newRender.render(outData);
+                        // newTs._render(outData)
                     },
                     jsonp: jsonp
                 })

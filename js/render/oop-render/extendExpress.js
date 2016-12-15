@@ -51,7 +51,7 @@ var compIf = function(vara, expre, varb) { //条件对比
 
 
 
-
+//处理相关变量字符串，比如data:xxx|filter，把相关内容取出来。
 var parseVariable = function(str) {
     var  vary, filter;
     var divide = "|";
@@ -95,7 +95,14 @@ var parseVariable = function(str) {
 
 //对环境标签中{{ }}是for还是if进行具体处理
 var parseS = function(str, match) {
-    var tp = str.slice(0, str.indexOf(" "));//根据空格位置，取得第一个标识符是if，for还是什么
+  //如下的判断后面要改一下下
+    var blankInd=str.indexOf(" ");
+    // console.warn(blankInd)
+    var tp=str;
+    if(blankInd!==-1){
+      tp = str.slice(0,blankInd);
+    }
+
     var obs = null;
     var reg = null;
     var mat;
@@ -109,11 +116,11 @@ var parseS = function(str, match) {
         mat = reg.exec(str);
         obs = [mat[1], mat[2], mat[3]];
         obs.type="if";
-    } else if (tp === "copy") {
-        reg = /copy\s+([\w\-]+)/;
+    } else if (tp === "template") {
+        reg = /template\s*([\w\-]*)/;
         mat = reg.exec(str);
         obs = [mat[1]];
-        obs.type="copy";//由于copy和scope的长度都为1
+        obs.type="template";//由于copy和scope的长度都为1
     }
     else if(tp==="scope"){
       reg=new RegExp("scope\\s+([\\w|\\|\\-]+)\\s+as\\s+(\\" + match + '?[\\{\\}\\w|\\|\\.\\[\\]\\,\\"\\:]+' + "\\" + match + "?)\\s*");
@@ -121,15 +128,18 @@ var parseS = function(str, match) {
      obs=[mat[1], mat[2]];
      obs.type="scope";
     }
+
     return obs
 };
+
+
 
 
 
 var extendExpress={
   handExpress: function(str, ob, item, blg) {//处理变量和值，也包括express表达式等
       var ts = this;
-      var tsId=ts.id;
+      // var tsId=ts.id;
       var varyOb = parseVariable(str);//先提取出相关内容做是什么内容的判断
       var match = ts.match;
       if (!item) {
@@ -145,15 +155,16 @@ var extendExpress={
       var matchVal = null;
       var tmpob;
       if (filter && filter[0] === "EXPRESS") {
+        //获得相关express
           var res = storeExp[attr];
           var expob = parseS(res.express, match);
-          
+
           if (expob.type === "for") {
               var forVal = expob[1],forNameVal=expob[0];
               if(forVal[0]===match){//如果第一个是变量，要去掉匹配
                 forVal=forVal.slice(1,-1);
                 var forVaryOb = parseVariable(forVal);
-                
+                //解析for xx in yy的yy
                 tmpob = ts.getMatchValue(forVaryOb, ob, item, blg);
                 if (!tmpob) {
                     tmpob = ""
@@ -200,6 +211,16 @@ var extendExpress={
                   }
               }
           } 
+          else if(expob.type==="template"){//细小子模版的内容
+              var tmpInit=expob[0];
+              tmpInit=tmpInit==="init"?true:false;
+              return {
+                init:tmpInit,
+                type:"template",
+                data:ob,
+                template:res.html
+              };
+          }
           else if(expob.type==="scope"){
             var scopeVal = expob[1],scopeNameVal=expob[0];
             if(scopeVal[0]===match){//如果第一个是变量，要去掉匹配
@@ -225,15 +246,17 @@ var extendExpress={
                     lastData: ob
                 }
       } 
+
           }
       else if (attr.indexOf("REF") !== -1) {
           ref = attr.slice(3);
           ref = ref ? ref : "OTHER";
           var soleItem="";
-          var kw=ts.keyword;
+          // var kw=ts.keyword;
+          //赋予唯一内容
           if(!(ref in refOb)){
-            soleItem=ts.sn.item+=1;
-            refOb[ref]=ref+"-"+tsId+"-"+soleItem;//埋入id,最后一个数字为唯一的id
+            soleItem=ts.sn.id+=1;
+            refOb[ref]=ref+"-"+soleItem;//埋入id,最后一个数字为唯一的id
           }
           return 'data-xjref="' + ref+'"';
       } 
@@ -242,6 +265,7 @@ var extendExpress={
           // if(typeof tmpob==="object"){tmpob=tmpob.toString();}
           
           var parOb={value:tmpob,attr:varyOb.firstAttr,save:varyOb.save};
+          //变量要做随机标记
           parOb[ts.keySign]=true;
           return parOb;
           // return tmpob

@@ -1,10 +1,5 @@
 
 var extendMatch={
-  sn: {
-      item: 0,//作为所有的唯一的序列
-      id:0//作为每一个实例的id
-  },
-  keyword:keyword,
   match: "?",
   regMatch: function() {
       var lf = this.match;
@@ -62,8 +57,6 @@ var extendMatch={
        else{
             tmpob=tmpArr;
        }
-
-       
        return tmpob;
    }
 };

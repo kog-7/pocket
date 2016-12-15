@@ -1,0 +1,71 @@
+button{
+    padding:0px;
+    margin:0px;
+    background:transparent;
+    border-width:0px;
+}
+.btn{
+  width:100px;
+  height:50px;
+  background:green;
+  color:white;
+  transform:scale(1,1);
+  -webkit-transform:scale(1,1);
+  transition:transform 0.5s;
+  -webkit-transition:-webkit-transform 0.5s;
+  float:left;
+  position:relative;
+  font-size:0.8em;
+}
+.btn span{
+  transition:opacity 0.5s;
+  -webkit-transition:opacity 0.5s;
+}
+.btn .position{
+  width:100px;
+  background:green;
+  transform:scale(0,1);
+  -webkit-transform:scale(0,1);
+  transition:transform 2s;
+  -webkit-transition:-webkit-transform 2s;
+  height:50px;
+  position:absolute;
+  top:0px;
+  left:0px;
+  transform-origin: left;
+  -webkit-transform-origin: left;
+}
+.process{
+  margin:20px auto;
+  text-align:center;
+}
+
+.process span{
+  display:inline-block;
+  width:5px;
+  height:5px;
+  background:yellow;
+  transition:transform 0.5s;
+  -webkit-transition:-webkit-transform 0.5s;
+  transform:scale(0.0);
+  -webkit-transform:scale(0.0);
+}
+
+.show{
+  width:300px;
+  height:100px;
+  float:left;
+  margin-left:20px;
+  background:grey;
+  position:relative;
+  text-align:center;
+}
+.show .dis{
+  position:absolute;
+  left:0px;
+  top:0px;
+  width:100%;
+  height:100px;
+  line-height:100px;
+  opacity:0;
+}

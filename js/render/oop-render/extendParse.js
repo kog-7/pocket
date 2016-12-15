@@ -1,6 +1,7 @@
 //分析{{  }}环境标签
 var anaTag = function(htm, match) {
- var regold = new RegExp('\\{\\{(\\w+)(?=\\s)(\\' + match + '|\\{\\"|\\}|[\\:\\"\\,\\w\\s\\>\\<\\=\\|\\.\\!\\[\\]])+\\}\\}');
+  if(typeof htm!=="string"){return;}
+ var regold = new RegExp('\\{\\{(\\w+)\\s*(\\' + match + '|\\{\\"|\\}|[\\:\\"\\,\\w\\s\\>\\<\\=\\|\\.\\!\\[\\]])*\\}\\}');
     var reg;
     var mat = null;
     var no = 0;
@@ -11,13 +12,14 @@ var anaTag = function(htm, match) {
     var out = [];
     var temp = [];
     tp = regold.exec(htm);
-    try {
-        tp = regold.exec(htm);
-    } catch (e) {
-        console.log("loop write error");
-        return;
-    }
-    var htmlArr = [];
+    regold.lastIndex=0;
+    // try {
+    //     tp = regold.exec(htm);
+    // } catch (e) {
+    //     console.log("loop write error");
+    //     return;
+    // }
+    // var htmlArr = [];
     var tempHtml = "";
     do {
         if (no === 0) {
@@ -26,17 +28,21 @@ var anaTag = function(htm, match) {
             } else {
                 tp = tp[1]
             }
-            reg = new RegExp("\\{\\{" + tp + '\\s+(\\' + match + '|\\{\\"|\\}|[\\:\\[\\]\\,\\"\\w\\s\\>\\<\\!\\=\\|\\.])+\\}\\}|(\\{\\{\\/' + tp + 's*\\}\\})', "g");
+            reg = new RegExp("\\{\\{" + tp + '\\s*(\\' + match + '|\\{\\"|\\}|[\\:\\[\\]\\,\\"\\w\\s\\>\\<\\!\\=\\|\\.])*\\}\\}|(\\{\\{\\/' + tp + 's*\\}\\})', "g");
             mat = reg.exec(htm);
+
             lf = [mat.index, reg.lastIndex]
         } else {
-            mat = reg.exec(htm)
+            mat = reg.exec(htm);
+
         }
+
         if (mat[2]) {
             no -= 1
         } else {
             no += 1
         }
+
         if (no === 0) {
             rt = [mat.index, reg.lastIndex];
             tempHtml = htm.slice(0, lf[0]);
@@ -47,7 +53,9 @@ var anaTag = function(htm, match) {
                 express: htm.slice(lf[0] + 2, lf[1] - 2)
             }];
             htm = right = htm.slice(rt[1]);
+            //进一步的遍历
             tp = regold.exec(right);
+            regold.lastIndex=0;
             out = out.concat(temp)
         }
 
@@ -60,7 +68,7 @@ var anaTag = function(htm, match) {
 
 
 var extendParse={
-  keySign:(function(){
+  keySign:(function(){//只是作为当前运行的一个添加
   var rd=(100*(Math.random())).toFixed(0);
   return "pocket_var"+rd;
 })(),
@@ -73,7 +81,7 @@ var extendParse={
     ts.signStore[item]={attr:attr,value:val};
     return "#"+keySign+item+keySign+"#";
   },
-   stringEachArr: function(str, obs, item, blg) {//从_render进入的入口
+   stringEachArr: function(str, obs, item, blg) {//从render进入的入口
        var ts = this;
        var reg = ts.regMatch();//得到正则表达式
        var match=null,matchStr="";
@@ -113,6 +121,7 @@ var extendParse={
    },
    handleStr: function(str, obs, item, blg) {
        var ts = this;
+       //变量赋值化字符串内容
        var mat = ts.handExpress(str, obs, item, blg);
        var keySign=ts.keySign;
   
@@ -123,10 +132,14 @@ var extendParse={
           return mat;
         }
         else {
-           return ts._render(mat, "middle");
+           return ts.render(mat, "middle");
        }
    },
-   _render: function(opt, mid) {
+   _changeToTemplate:function(htm){
+    var keySign=this.keySign;
+    return '<script class="'+keySign+'" type="text/html">'+htm+'<\/script>'; 
+   },
+   render: function(opt, mid) {
        var strhtml = opt.template,
            data = opt.data;
        var prefix = opt.prefix;
@@ -134,12 +147,27 @@ var extendParse={
        var ts = this;
        var match = this.match;
        var strarr = anaTag(strhtml, match);//分析{{}}关键字
-      //  var callback = opt.callback;
+       var callback = opt.callback;
        var lastData = opt.lastData;
+       var type=opt.type;
+
+       //针对临时模版的渲染
+       var init=opt.init;
+
        var template = "";
        var newItem;
        var tempData = null;
        var temp = null;
+
+       var outstr = "",copyOutStr="";
+      if(type==="template"){//如果是模版型号，初始存一个副本
+        outstr=copyOutStr=ts._changeToTemplate(strhtml);
+        if(init!==true){//如果不为true表示模版不需要初始化
+          return {html:outstr,copyHtml:copyOutStr};
+        }
+      }
+
+       //把html字符串再进行{{}}解析
        if (typeHim(strarr) === "array") {
            var i = 0,
                n = strarr.length,
@@ -161,13 +189,12 @@ var extendParse={
        } else if (strarr === false) {
            template = strhtml
        }
+
         var combineHtml=null;
-       
-       var tp = typeHim(data);
+     var tp = typeHim(data);
        temp = null;
-       var outstr = "",copyOutStr="";
-       var i = 0,
-           n;
+      var i = 0,n;
+
        if (tp === "array" && mid === null) {//data的格式
            i = 0, n = data.length;
            for (; i < n; i += 1) {
@@ -179,6 +206,7 @@ var extendParse={
                if (lastData) {
                    tempData = createInherit(lastData, tempData)
                }
+               //如果数据是数组，遍历执行
                combineHtml=ts.stringEachArr(template, tempData, i, n);
                outstr+=combineHtml.html;
                copyOutStr+=combineHtml.copyHtml;
@@ -186,6 +214,7 @@ var extendParse={
            }
        } else if (tp === "array" && prefix) {//根据情况，先写一样的，
            i = 0, n = data.length;
+  
            for (; i < n; i += 1) {
                temp = data[i];
                if (typeof temp === "object") {
@@ -225,14 +254,21 @@ var extendParse={
                data = createInherit(lastData, data)
            }
            combineHtml=ts.stringEachArr(template, data, 0, 1);
-           outstr=combineHtml.html;
-           copyOutStr=combineHtml.copyHtml;
+           outstr+=combineHtml.html;
+           copyOutStr+=combineHtml.copyHtml;
        }
-var returnOut={html:outstr,copyHtml:copyOutStr};
+
+      var returnOut={html:outstr,copyHtml:copyOutStr};
+
       if(!mid){//表示为初始运行环境，才出去入口
 //data为初次原始的data
-      ts._handleDom(returnOut);
+      // ts._handleDom(returnOut);
+      if(typeof callback==="function"){
+        callback(returnOut,ts.refOb,ts.signStore,ts.keySign);
+      }
     }
+
+
        return returnOut;
    }
 }

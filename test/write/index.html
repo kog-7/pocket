@@ -14,7 +14,7 @@
     <script src="../../dest/pocket.js"></script>
     <div id="cont"></div>
     <script type="text/javascript">
-        var pok = new Pocket("#cont", "example/write/templates/tmp.html");
+        var pok = new Pocket("#cont", "plugin/pocket/pocket/example/write/templates/tmp.html");
         pok.setCallback(function(){
           console.log(123)
         });
@@ -28,7 +28,6 @@
                 var ts = this;
                 dm.on("click", function() {
                     ts.btn.sync().updateState("begin", function(cb, run, lastValue, store) {
-                          console.log(store)
                         var txt = store[0].value;
                         var val = {
                             value: txt,

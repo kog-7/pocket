@@ -29,11 +29,16 @@ var runMountFun = function (amount, outDom, ts) {
 '@include(./utils/tagAna.js)'
 
 var extendDom = {
-    _handleDom: function (htmlOb) {
+    keyword:keyword,
+    _handleDom: function (htmlOb,insertType,refOb,signStore,keySign) {
         var htmlStr = htmlOb.html;
         var htmlCopy = htmlOb.copyHtml;
         var ts = this;
-        var refOb = ts.refOb;
+        // 从render来
+        // var refOb = ts.refOb;
+        //         //拿到匹配的数据
+        // var signStore = ts.signStore,
+        //     keySign = ts.keySign; //keysign为# ..    ..#的标识符
         var dom = $(htmlStr);
         var root = $("<div></div>");
         root.append(dom);
@@ -45,24 +50,24 @@ var extendDom = {
         var bmount = ts._beforeMount,
             amount = ts._afterMount;
         var attrs = ts.attrs;
-        var updateOb = ts.updateOb; //得到最后返回的实例
+        //放出的接口
+        var updateOb = ts.updateOb; 
         var kw = ts.keyword;
         var outDom = {};
-        var aim = ts.aim,
-            insertType = ts.insertType;
+        var aim = ts.aim;
+            // insertType = ts.insertType;
         var copyRoot = $("<div></div>");
         copyRoot.append(copyDom);
-        //拿到匹配的数据
-        var signStore = ts.signStore,
-            keySign = ts.keySign; //keysign为# ..    ..#的标识符
+
         var updateObject = {};
-      
+
         for (ref in refOb) { //ref 代表名字
             if (refOb.hasOwnProperty(ref)) {
                 domId = refOb[ref];
                 // 这个地方做的是,每个dom的统一指向，后面是具体指向
                 nd = root.find('[data-xjref=' + ref + ']');
                 copyNd = copyRoot.find('[data-xjref=' + ref + ']');
+
                 //移除特质属性
                 if (nd[0].hasAttribute("pocket-data")) {
                     nd.removeAttr("pocket-data");
@@ -81,7 +86,7 @@ var extendDom = {
         }
         
         if(typeof ts.mountCallback==="function"){
-          ts.mountCallback.call(updateOb);
+          ts.mountCallback.call(updateOb);//把新生成的updateOb放进去作为相关的回调
         }
         
         if (bmount) {
@@ -99,11 +104,7 @@ var extendDom = {
             runMountFun(amount, outDom, updateOb);
         }
         
-    
-        
-
         // delete updateOb.loadTast;
-
         updateOb.loaded = true;
         
         delete ts.updateOb;
