@@ -162,6 +162,7 @@ var getValue = function(name, ob, item, blg) {
         }
     }
     out = out ? out : false;
+    //out值后面要添加html转义做安全
     return out;
 };
 
