@@ -1,7 +1,7 @@
 {
     "name": "pocketjs-inbrowser",
     "version": "1.1.5",
-    "description": "方便处理连串异步状态更新的javascript视图层框架",
+    "description": "模版与事件结合的js小库",
     "main": "dest/pocket.js",
     "dependencies": {},
     "devDependencies": {},
